@@ -22,7 +22,8 @@ const (
 	// wait for keep alive cleanups.
 	DefaultDelay = 5
 	defaultRoute = "0.0.0.0"
-	tcpv         = "tcp4"
+
+	tcpv = "tcp4"
 
 	udpv = "udp4"
 )
@@ -30,6 +31,11 @@ const (
 var (
 	errNotExist = errors.New("node does not exist")
 )
+
+type newConn struct {
+	id   uint16
+	addr string
+}
 
 // Listener has a Receive method called when a new packet
 // comes in and a Lost method called when a node gets
@@ -57,7 +63,7 @@ type Server struct {
 	route     string
 	listeners []Listener
 
-	incoming     chan *node
+	incoming     chan newConn
 	packets      chan Packet
 	lost         chan uint16
 	connected    chan uint16
@@ -124,7 +130,10 @@ func NewServer(ctx context.Context, logger io.Writer, inf string, group net.IP, 
 }
 
 // Send sends the given packet, the node to sent to is
-// specified within the packet.
+// specified within the packet. It returns an error if
+// does not exist or packet is incorrect. The writing
+// to the connection may or may not succeed, either way
+// you will find that if you implement Listener interface.
 func (srv *Server) Send(packet Packet) error {
 	b, err := packet.Encode()
 	if err != nil {
@@ -135,9 +144,7 @@ func (srv *Server) Send(packet Packet) error {
 		return errors.Wrapf(errNotExist, "id %v", packet.ID)
 	}
 	node := n.(*node)
-	if _, err := node.Write(b); err != nil {
-		return errors.Wrap(err, "failed to send packet")
-	}
+	node.send(b)
 	return nil
 }
 
@@ -153,8 +160,7 @@ func (srv *Server) Nodes() []uint16 {
 }
 
 // ListenAndAccept runs the qsy server, listening over udp for incoming
-// connection requests, and establishing new connections over tcp. This
-// function blocks.
+// connection requests, and establishing new connections over tcp.
 func (srv *Server) ListenAndAccept() error {
 	if srv.run {
 		return errors.New("server is already running")
@@ -167,7 +173,7 @@ func (srv *Server) ListenAndAccept() error {
 	srv.lost = make(chan uint16)
 	srv.connected = make(chan uint16)
 	srv.disconnected = make(chan uint16)
-	srv.incoming = make(chan *node)
+	srv.incoming = make(chan newConn)
 	srv.mu.Lock()
 	srv.searching = true
 	srv.mu.Unlock()
@@ -206,25 +212,25 @@ func (srv *Server) forward() {
 func (srv *Server) accept() {
 	for {
 		select {
-		case node := <-srv.incoming:
-			if _, ok := srv.pool.Load(node.id); ok {
-				srv.lost <- node.id
+		case nconn := <-srv.incoming:
+			if _, ok := srv.pool.Load(nconn.id); ok {
+				srv.lost <- nconn.id
 				break
 			}
-			tconn, err := srv.dial(node)
+			tconn, err := srv.dial(nconn)
 			if err != nil {
-				log.Printf("failed from connectNode: %s", err)
+				log.Printf("failed to dial new conn: %s", err)
 				break
 			}
 			if err := tconn.SetNoDelay(true); err != nil {
 				log.Printf("failed to set no delay on node conn: %s", err)
-				srv.lost <- node.id
+				srv.lost <- nconn.id
 				break
 			}
-			node.Conn = tconn
-			srv.pool.Store(node.id, node)
-			srv.connected <- node.id
-			go node.listen(srv.ctx, srv.packets, srv.lost, srv.delay)
+			n := newNode(tconn, nconn.id, nconn.addr)
+			srv.pool.Store(n.id, n)
+			srv.connected <- n.id
+			go n.listen(srv.ctx, srv.packets, srv.lost, srv.delay)
 		case nid := <-srv.lost:
 			n, ok := srv.pool.Load(nid)
 			if !ok {
@@ -242,8 +248,8 @@ func (srv *Server) accept() {
 	}
 }
 
-func (srv *Server) dial(node *node) (*net.TCPConn, error) {
-	taddr, err := net.ResolveTCPAddr(tcpv, node.addr)
+func (srv *Server) dial(n newConn) (*net.TCPConn, error) {
+	taddr, err := net.ResolveTCPAddr(tcpv, n.addr)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to resolve node addres")
 	}
@@ -318,7 +324,7 @@ func (srv *Server) listen() {
 			if pkt.T != HelloT {
 				break
 			}
-			srv.incoming <- &node{id: pkt.ID, addr: src.String()}
+			srv.incoming <- newConn{id: pkt.ID, addr: src.String()}
 		}
 	}
 }

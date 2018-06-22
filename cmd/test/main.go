@@ -10,23 +10,29 @@ import (
 	"github.com/matipan/terminal/pkg/qsy"
 )
 
-type r struct{}
-
-func (r) Receive(p qsy.Packet) {
-	log.Printf("Got packet: %s", p)
+type r struct {
+	t time.Time
 }
 
-func (r) LostNode(id uint16) {
-	log.Printf("lost node: %v", id)
+func (r r) Receive(p qsy.Packet) {
+	if p.T == qsy.KeepAliveT {
+		log.Printf("Got packet at %v", time.Since(r.t).Nanoseconds()/1000)
+	}
 }
 
-func (r) NewNode(id uint16) {
+func (r r) LostNode(id uint16) {
+	log.Printf("lost node at %v: %v", time.Since(r.t).Nanoseconds()/1000, id)
+}
+
+func (r r) NewNode(id uint16) {
 	log.Printf("new node: %v", id)
 }
 
 func main() {
+	// TODO: make flags for the multicast address and all that.
 	ctx, _ := context.WithDeadline(context.Background(), time.Now().Add(120*time.Second))
-	s, err := qsy.NewServer(ctx, os.Stdout, "en0", net.IP{224, 0, 0, 12}, "", "10.0.0.2", r{})
+	t := time.Now()
+	s, err := qsy.NewServer(ctx, t, os.Stdout, "wlan0", net.IP{224, 0, 0, 12}, "", "10.0.0.1", r{t})
 	if err != nil {
 		log.Printf("failed to create server: %s", err)
 		os.Exit(1)

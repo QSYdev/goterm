@@ -19,8 +19,18 @@ type Conn interface {
 // relevant to that node.
 type node struct {
 	Conn
-	id   uint16
-	addr string
+	id       uint16
+	addr     string
+	requests chan []byte
+}
+
+// newNode returns a node with the specified config.
+func newNode(conn Conn, id uint16, addr string) *node {
+	return &node{
+		Conn: conn,
+		id:   id,
+		addr: addr,
+	}
 }
 
 // Listen listens over the TCPConn for incoming packets.
@@ -40,6 +50,12 @@ func (n *node) listen(ctx context.Context, packets chan<- Packet, lost chan<- ui
 				log.Printf("failed to close node conn: %s", err)
 			}
 			return
+			// TODO: read is blocking so we can't really do this.
+			// export this to a new method
+		case b := <-n.requests:
+			if _, err := n.Write(b); err != nil {
+				log.Printf("failed to write to node: %s", err)
+			}
 		default:
 			b := make([]byte, PacketSize)
 			if _, err := n.Read(b); err != nil {
@@ -60,9 +76,15 @@ func (n *node) listen(ctx context.Context, packets chan<- Packet, lost chan<- ui
 					lost <- n.id
 					return
 				}
-				break
 			}
 			packets <- pkt
 		}
 	}
+}
+
+// send sends the encoded packet to the requests channel.
+// Listen will pickup that requests and write to the conn.
+// This is so that we don't expose the channel.
+func (n *node) send(b []byte) {
+	n.requests <- b
 }
