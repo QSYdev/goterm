@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/matipan/terminal/pkg/qsy"
+	"github.com/qsydev/goterm/pkg/qsy"
 )
 
 type r struct {

@@ -17,19 +17,18 @@ import (
 const (
 	// QSYPort is the port used to communicate with nodes.
 	QSYPort = 3000
-
 	// DefaultDelay is the default amount of seconds to
 	// wait for keep alive cleanups.
 	DefaultDelay = 5
 	defaultRoute = "0.0.0.0"
-
-	tcpv = "tcp4"
-
-	udpv = "udp4"
+	tcpv         = "tcp4"
+	udpv         = "udp4"
 )
 
 var (
-	errNotExist = errors.New("node does not exist")
+	// ErrNotExist is an error when a given node is
+	// not in the pool.
+	ErrNotExist = errors.New("node does not exist")
 )
 
 type newConn struct {
@@ -141,10 +140,10 @@ func (srv *Server) Send(packet Packet) error {
 	}
 	n, ok := srv.pool.Load(packet.ID)
 	if !ok {
-		return errors.Wrapf(errNotExist, "id %v", packet.ID)
+		return errors.Wrapf(ErrNotExist, "id %v", packet.ID)
 	}
 	node := n.(*node)
-	node.send(b)
+	node.Send(b)
 	return nil
 }
 
@@ -183,8 +182,13 @@ func (srv *Server) ListenAndAccept() error {
 	return nil
 }
 
-// forward sends the packet received from the node to all receivers
+// forward forwards events to the listeners. Events so far are:
+// * Incoming packet that it's not keep alive
+// * Disconnected node
+// * New node connection
 func (srv *Server) forward() {
+	// TODO: does it really need to be 1 goroutine per
+	// method? Maybe do one for all.
 	for {
 		select {
 		case p := <-srv.packets:
@@ -230,7 +234,7 @@ func (srv *Server) accept() {
 			n := newNode(tconn, nconn.id, nconn.addr)
 			srv.pool.Store(n.id, n)
 			srv.connected <- n.id
-			go n.listen(srv.ctx, srv.packets, srv.lost, srv.delay)
+			n.Listen(srv.ctx, srv.packets, srv.lost, srv.delay)
 		case nid := <-srv.lost:
 			n, ok := srv.pool.Load(nid)
 			if !ok {
@@ -243,6 +247,9 @@ func (srv *Server) accept() {
 			srv.pool.Delete(nid)
 			srv.disconnected <- nid
 		case <-srv.ctx.Done():
+			close(srv.lost)
+			close(srv.incoming)
+			srv.pconn.Close()
 			return
 		}
 	}
@@ -289,42 +296,30 @@ func (srv *Server) StopSearch() {
 // listen runs in its own go routine.
 func (srv *Server) listen() {
 	for {
-		select {
-		case <-srv.ctx.Done():
-			srv.mu.Lock()
-			srv.searching = false
-			srv.mu.Unlock()
-			if err := srv.pconn.Close(); err != nil {
-				log.Printf("failed to close udp connection: %v", err)
-			}
-			close(srv.incoming)
-			return
-		default:
-			srv.mu.RLock()
-			if !srv.searching {
-				srv.mu.RUnlock()
-				break
-			}
+		srv.mu.RLock()
+		if !srv.searching {
 			srv.mu.RUnlock()
-
-			b := make([]byte, 16)
-			_, _, src, err := srv.pconn.ReadFrom(b)
-			if err != nil {
-				log.Printf("failed to read from udp conn: %s", err)
-				break
-			}
-			if b[QHeader] != 'Q' || b[SHeader] != 'S' || b[YHeader] != 'Y' {
-				break
-			}
-			pkt := Packet{}
-			if err := Decode(b, &pkt); err != nil {
-				log.Printf("failed to decode packet: %v\nPacket bytes: %v", err, b)
-				break
-			}
-			if pkt.T != HelloT {
-				break
-			}
-			srv.incoming <- newConn{id: pkt.ID, addr: src.String()}
+			break
 		}
+		srv.mu.RUnlock()
+
+		b := make([]byte, 16)
+		_, _, src, err := srv.pconn.ReadFrom(b)
+		if err != nil {
+			log.Printf("failed to read from udp conn: %s", err)
+			break
+		}
+		if b[QHeader] != 'Q' || b[SHeader] != 'S' || b[YHeader] != 'Y' {
+			break
+		}
+		pkt := Packet{}
+		if err := Decode(b, &pkt); err != nil {
+			log.Printf("failed to decode packet: %v\nPacket bytes: %v", err, b)
+			break
+		}
+		if pkt.T != HelloT {
+			break
+		}
+		srv.incoming <- newConn{id: pkt.ID, addr: src.String()}
 	}
 }
