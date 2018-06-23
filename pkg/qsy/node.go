@@ -27,9 +27,10 @@ type node struct {
 // newNode returns a node with the specified config.
 func newNode(conn Conn, id uint16, addr string) *node {
 	return &node{
-		Conn: conn,
-		id:   id,
-		addr: addr,
+		Conn:     conn,
+		id:       id,
+		addr:     addr,
+		requests: make(chan []byte),
 	}
 }
 
@@ -47,9 +48,11 @@ func (n *node) write(ctx context.Context) {
 			if err := n.Close(); err != nil {
 				log.Printf("failed to close node conn: %s", err)
 			}
-			close(n.requests)
 			return
-		case b := <-n.requests:
+		case b, ok := <-n.requests:
+			if !ok {
+				return
+			}
 			if _, err := n.Write(b); err != nil {
 				log.Printf("failed to write to node: %s", err)
 			}
@@ -72,6 +75,7 @@ func (n *node) read(packets chan<- Packet, lost chan<- uint16, kadelay int64) {
 		b := make([]byte, PacketSize)
 		if _, err := n.Read(b); err != nil {
 			lost <- n.id
+			close(n.requests)
 			return
 		}
 		pkt := Packet{}

@@ -47,10 +47,10 @@ func NewPacket(t uint8, id uint16, color string, delay uint32, step uint16, soun
 		Signature: [3]byte{'Q', 'S', 'Y'},
 		T:         t,
 		ID:        id,
-		Color:     0, // TODO
+		Color:     uint16(0),
 		Delay:     delay,
 		Step:      step,
-		Config:    0, // TODO
+		Config:    uint16(0),
 	}
 }
 
@@ -74,8 +74,4 @@ func Decode(b []byte, pkt *Packet) error {
 
 func (pkt Packet) String() string {
 	return fmt.Sprintf("Type: %v\nID: %v\n", pkt.T, pkt.ID)
-}
-
-func ntoh(s uint16) uint16 {
-	return (((0xFF) & s) << 8) | (((0xFF00) & s) >> 8)
 }

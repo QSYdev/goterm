@@ -248,7 +248,6 @@ func (srv *Server) accept() {
 			srv.disconnected <- nid
 		case <-srv.ctx.Done():
 			close(srv.lost)
-			close(srv.incoming)
 			srv.pconn.Close()
 			return
 		}
@@ -310,16 +309,17 @@ func (srv *Server) listen() {
 			break
 		}
 		if b[QHeader] != 'Q' || b[SHeader] != 'S' || b[YHeader] != 'Y' {
-			break
+			continue
 		}
 		pkt := Packet{}
 		if err := Decode(b, &pkt); err != nil {
 			log.Printf("failed to decode packet: %v\nPacket bytes: %v", err, b)
-			break
+			continue
 		}
 		if pkt.T != HelloT {
-			break
+			continue
 		}
 		srv.incoming <- newConn{id: pkt.ID, addr: src.String()}
 	}
+	close(srv.incoming)
 }

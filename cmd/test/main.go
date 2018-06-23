@@ -5,23 +5,20 @@ import (
 	"log"
 	"net"
 	"os"
-	"time"
 
 	"github.com/qsydev/goterm/pkg/qsy"
 )
 
-type r struct {
-	t time.Time
-}
+type r struct{}
 
 func (r r) Receive(p qsy.Packet) {
 	if p.T == qsy.KeepAliveT {
-		log.Printf("Got packet at %v", time.Since(r.t).Nanoseconds()/1000)
+		log.Printf("Got keep alive %s", p)
 	}
 }
 
 func (r r) LostNode(id uint16) {
-	log.Printf("lost node at %v: %v", time.Since(r.t).Nanoseconds()/1000, id)
+	log.Printf("lost node: %v", id)
 }
 
 func (r r) NewNode(id uint16) {
@@ -29,10 +26,8 @@ func (r r) NewNode(id uint16) {
 }
 
 func main() {
-	// TODO: make flags for the multicast address and all that.
-	ctx, _ := context.WithDeadline(context.Background(), time.Now().Add(120*time.Second))
-	t := time.Now()
-	s, err := qsy.NewServer(ctx, t, os.Stdout, "wlan0", net.IP{224, 0, 0, 12}, "", "10.0.0.1", r{t})
+	ctx := context.Background()
+	s, err := qsy.NewServer(ctx, os.Stdout, "wlan0", net.IP{224, 0, 0, 12}, "", "10.0.0.1", r{})
 	if err != nil {
 		log.Printf("failed to create server: %s", err)
 		os.Exit(1)
