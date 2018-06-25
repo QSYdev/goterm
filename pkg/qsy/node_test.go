@@ -12,15 +12,13 @@ const (
 )
 
 type mockNode struct {
-	read func() ([]byte, error)
+	read func(b []byte) (int, error)
 }
 
 // m.read is used to mock whatever operation we want
-// to mock
+// to mock.
 func (m mockNode) Read(b []byte) (int, error) {
-	var err error
-	b, err = m.read()
-	return len(b), err
+	return m.read(b)
 }
 
 // only implement to fullfil interface
@@ -36,49 +34,66 @@ func (m mockNode) Write(b []byte) (int, error) {
 	return 0, nil
 }
 
-func TestListenReceiving(t *testing.T) {
+func TestReadPacket(t *testing.T) {
 	t.Parallel()
-	pkt := NewPacket(CommandT, uint16(1), "", uint32(0), uint16(1), false, false)
-	packets := make(chan Packet)
-	kadelay := int64(5)
-	n := &node{
-		conn: mockNode{
-			read: func() ([]byte, error) {
-				return pkt.Encode()
+
+	var (
+		i       = 0
+		pkt     = Packet{}
+		packets = make(chan Packet, 50)
+		lost    = make(chan uint16, 50)
+		kadelay = int64(5)
+		node    = &node{
+			conn: mockNode{
+				read: func(b []byte) (int, error) {
+					// return a packet only once
+					if i != 0 {
+						return 0, errors.New("ups")
+					}
+					i++
+					copy(b, helloPacket())
+					return len(b), nil
+				},
 			},
-		},
-		id:       uint16(1),
-		addr:     nodeAddr,
-		requests: make(chan []byte),
-	}
-	go n.Listen(packets, nil, kadelay)
+			id:       uint16(18),
+			addr:     nodeAddr,
+			requests: make(chan []byte),
+		}
+	)
+	Decode(helloPacket(), &pkt)
+	node.read(packets, lost, kadelay)
 	p := <-packets
 	if p != pkt {
-		t.Fatalf("packet is not valid.\n\tExpected: %s - Got: %s\n", pkt, p)
+		t.Fatalf("packet is not valid.\n\tExpected: %s\n\tGot: %s\n", pkt, p)
 	}
-	n.Close()
+	node.Close()
 	close(packets)
+	close(lost)
 }
 
-func TestListenLost(t *testing.T) {
+func TestReadLostNode(t *testing.T) {
 	t.Parallel()
-	lost := make(chan uint16)
-	kadelay := int64(5)
-	n := &node{
-		conn: mockNode{
-			read: func() ([]byte, error) {
-				return nil, errors.New("uh oh")
+	var (
+		lost    = make(chan uint16, 50)
+		packets = make(chan Packet, 50)
+		kadelay = int64(5)
+		node    = &node{
+			conn: mockNode{
+				read: func(b []byte) (int, error) {
+					return 0, errors.New("uh-oh")
+				},
 			},
-		},
-		id:       uint16(1),
-		addr:     nodeAddr,
-		requests: make(chan []byte),
-	}
-	go n.Listen(nil, lost, kadelay)
+			id:       uint16(18),
+			addr:     nodeAddr,
+			requests: make(chan []byte),
+		}
+	)
+	node.read(packets, lost, kadelay)
 	lid := <-lost
-	if lid != uint16(1) {
+	if lid != uint16(18) {
 		t.Fatalf("lost node id is not valid. Expected: %v - Got: %v\n", uint16(1), lid)
 	}
-	n.Close()
+	node.Close()
 	close(lost)
+	close(packets)
 }

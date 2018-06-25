@@ -168,11 +168,11 @@ func (srv *Server) ListenAndAccept() error {
 		return errors.Wrap(err, "server was stopped")
 	}
 	srv.run = true
-	srv.packets = make(chan Packet)
-	srv.lost = make(chan uint16)
-	srv.connected = make(chan uint16)
-	srv.disconnected = make(chan uint16)
-	srv.incoming = make(chan newConn)
+	srv.packets = make(chan Packet, 50)
+	srv.lost = make(chan uint16, 50)
+	srv.connected = make(chan uint16, 50)
+	srv.disconnected = make(chan uint16, 50)
+	srv.incoming = make(chan newConn, 50)
 	srv.mu.Lock()
 	srv.searching = true
 	srv.mu.Unlock()
