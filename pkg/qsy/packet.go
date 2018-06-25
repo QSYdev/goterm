@@ -57,8 +57,26 @@ func NewPacket(t uint8, id uint16, color string, delay uint32, step uint16, soun
 // Encode returns the encoded bytes of the given packet.
 func (pkt Packet) Encode() ([]byte, error) {
 	buf := new(bytes.Buffer)
-	if err := binary.Write(buf, binary.BigEndian, pkt); err != nil {
-		return nil, errors.Wrap(err, "failed to encode packet")
+	if err := binary.Write(buf, binary.BigEndian, pkt.Signature); err != nil {
+		return nil, errors.Wrap(err, "failed to encode packet signature")
+	}
+	if err := binary.Write(buf, binary.BigEndian, pkt.T); err != nil {
+		return nil, errors.Wrap(err, "failed to encode packet type")
+	}
+	if err := binary.Write(buf, binary.BigEndian, pkt.ID); err != nil {
+		return nil, errors.Wrap(err, "failed to encode packet ID")
+	}
+	if err := binary.Write(buf, binary.BigEndian, pkt.Color); err != nil {
+		return nil, errors.Wrap(err, "failed to encode packet Color")
+	}
+	if err := binary.Write(buf, binary.BigEndian, pkt.Delay); err != nil {
+		return nil, errors.Wrap(err, "failed to encode packet Delay")
+	}
+	if err := binary.Write(buf, binary.BigEndian, pkt.Step); err != nil {
+		return nil, errors.Wrap(err, "failed to encode packet Step")
+	}
+	if err := binary.Write(buf, binary.BigEndian, pkt.Config); err != nil {
+		return nil, errors.Wrap(err, "failed to encode packet Config")
 	}
 	return buf.Bytes(), nil
 }

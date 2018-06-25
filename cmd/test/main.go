@@ -13,7 +13,7 @@ type r struct{}
 
 func (r r) Receive(p qsy.Packet) {
 	if p.T == qsy.KeepAliveT {
-		log.Printf("Got keep alive %s", p)
+		log.Printf("keep alive node: %v", p.ID)
 	}
 }
 

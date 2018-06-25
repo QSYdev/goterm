@@ -204,9 +204,6 @@ func (srv *Server) forward() {
 				go v.NewNode(id)
 			}
 		case <-srv.ctx.Done():
-			close(srv.packets)
-			close(srv.disconnected)
-			close(srv.connected)
 			return
 		}
 	}
@@ -234,7 +231,7 @@ func (srv *Server) accept() {
 			n := newNode(tconn, nconn.id, nconn.addr)
 			srv.pool.Store(n.id, n)
 			srv.connected <- n.id
-			n.Listen(srv.ctx, srv.packets, srv.lost, srv.delay)
+			n.Listen(srv.packets, srv.lost, srv.delay)
 		case nid := <-srv.lost:
 			n, ok := srv.pool.Load(nid)
 			if !ok {
@@ -242,13 +239,22 @@ func (srv *Server) accept() {
 			}
 			node := n.(*node)
 			if err := node.Close(); err != nil {
-				log.Printf("failed to close %d tconn: %s", nid, err)
+				log.Printf("failed to close node %v: %s", nid, err)
 			}
 			srv.pool.Delete(nid)
 			srv.disconnected <- nid
 		case <-srv.ctx.Done():
+			srv.pool.Range(func(id interface{}, n interface{}) bool {
+				node := n.(*node)
+				if err := node.Close(); err != nil {
+					log.Printf("failed to close node %v: %s", id, err)
+				}
+				return true
+			})
 			close(srv.lost)
-			srv.pconn.Close()
+			close(srv.packets)
+			close(srv.disconnected)
+			close(srv.connected)
 			return
 		}
 	}
@@ -322,4 +328,7 @@ func (srv *Server) listen() {
 		srv.incoming <- newConn{id: pkt.ID, addr: src.String()}
 	}
 	close(srv.incoming)
+	if err := srv.pconn.Close(); err != nil {
+		log.Printf("failed to close udp conn: %s", err)
+	}
 }

@@ -1,7 +1,6 @@
 package qsy
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -43,21 +42,21 @@ func TestListenReceiving(t *testing.T) {
 	packets := make(chan Packet)
 	kadelay := int64(5)
 	n := &node{
-		Conn: mockNode{
+		conn: mockNode{
 			read: func() ([]byte, error) {
 				return pkt.Encode()
 			},
 		},
-		id:   uint16(1),
-		addr: nodeAddr,
+		id:       uint16(1),
+		addr:     nodeAddr,
+		requests: make(chan []byte),
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	go n.listen(ctx, packets, nil, kadelay)
+	go n.Listen(packets, nil, kadelay)
 	p := <-packets
 	if p != pkt {
 		t.Fatalf("packet is not valid.\n\tExpected: %s - Got: %s\n", pkt, p)
 	}
-	cancel()
+	n.Close()
 	close(packets)
 }
 
@@ -66,20 +65,20 @@ func TestListenLost(t *testing.T) {
 	lost := make(chan uint16)
 	kadelay := int64(5)
 	n := &node{
-		Conn: mockNode{
+		conn: mockNode{
 			read: func() ([]byte, error) {
 				return nil, errors.New("uh oh")
 			},
 		},
-		id:   uint16(1),
-		addr: nodeAddr,
+		id:       uint16(1),
+		addr:     nodeAddr,
+		requests: make(chan []byte),
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	go n.listen(ctx, nil, lost, kadelay)
+	go n.Listen(nil, lost, kadelay)
 	lid := <-lost
 	if lid != uint16(1) {
 		t.Fatalf("lost node id is not valid. Expected: %v - Got: %v\n", uint16(1), lid)
 	}
-	cancel()
+	n.Close()
 	close(lost)
 }
