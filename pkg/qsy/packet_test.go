@@ -4,8 +4,8 @@ import "testing"
 
 func TestEncode(t *testing.T) {
 	var (
-		pkt         = NewPacket(HelloT, uint16(18), "", uint32(0), uint16(0), false, false)
-		validPacket = helloPacket()
+		pkt         = NewPacket(ToucheT, uint16(18), Red, uint32(0), uint16(0), false, true)
+		validPacket = touchePacket()
 	)
 	b, err := pkt.Encode()
 	if err != nil {
@@ -21,7 +21,7 @@ func TestEncode(t *testing.T) {
 func TestDecode(t *testing.T) {
 	var (
 		pkt            = Packet{}
-		expectedPacket = NewPacket(HelloT, uint16(18), "", uint32(0), uint16(0), false, false)
+		expectedPacket = NewPacket(HelloT, uint16(18), Cyan, uint32(0), uint16(0), true, true)
 		encodedPacket  = helloPacket()
 	)
 	if err := Decode(encodedPacket, &pkt); err != nil {
@@ -39,15 +39,39 @@ func helloPacket() []byte {
 	p[YHeader] = 'Y'
 	p[TypeHeader] = HelloT
 	p[IDHeader] = uint8(0)
-	p[0x05] = uint8(18)
-	p[ColorRGHeader] = uint8(0)
+	p[IDHeader+0x01] = uint8(18)
+	// color cyan
+	p[ColorRGHeader] = uint8(15)
+	p[ColorBHeader] = uint8(240)
+	p[DelayHeader] = uint8(0)
+	p[DelayHeader+0x01] = uint8(0)
+	p[DelayHeader+0x02] = uint8(0)
+	p[DelayHeader+0x03] = uint8(0)
+	p[StepHeader] = uint8(0)
+	p[StepHeader+0x01] = uint8(0)
+	p[ConfigHeader] = uint8(0)
+	p[ConfigHeader+0x01] = uint8(3)
+	return p
+}
+
+func touchePacket() []byte {
+	p := make([]byte, PacketSize)
+	p[QHeader] = 'Q'
+	p[SHeader] = 'S'
+	p[YHeader] = 'Y'
+	p[TypeHeader] = ToucheT
+	p[IDHeader] = uint8(0)
+	p[IDHeader+0x01] = uint8(18)
+	// color red
+	p[ColorRGHeader] = uint8(240)
 	p[ColorBHeader] = uint8(0)
 	p[DelayHeader] = uint8(0)
-	p[0x09] = uint8(0)
-	p[0x0A] = uint8(0)
-	p[0x0B] = uint8(0)
+	p[DelayHeader+0x01] = uint8(0)
+	p[DelayHeader+0x02] = uint8(0)
+	p[DelayHeader+0x03] = uint8(0)
 	p[StepHeader] = uint8(0)
-	p[0x0D] = uint8(0)
+	p[StepHeader+0x01] = uint8(0)
 	p[ConfigHeader] = uint8(0)
+	p[ConfigHeader+0x01] = uint8(1)
 	return p
 }
