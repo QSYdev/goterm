@@ -187,8 +187,6 @@ func (srv *Server) ListenAndAccept() error {
 // * Disconnected node
 // * New node connection
 func (srv *Server) forward() {
-	// TODO: does it really need to be 1 goroutine per
-	// method? Maybe do one for all.
 	for {
 		select {
 		case p := <-srv.packets:
@@ -304,7 +302,7 @@ func (srv *Server) listen() {
 		srv.mu.RLock()
 		if !srv.searching {
 			srv.mu.RUnlock()
-			break
+			continue
 		}
 		srv.mu.RUnlock()
 
