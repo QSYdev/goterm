@@ -1,2 +1,5 @@
 vendor/
 cmd/test/test
+*.DS_Store
+*.test
+*.out

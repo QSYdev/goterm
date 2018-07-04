@@ -178,7 +178,9 @@ func (srv *Server) ListenAndAccept() error {
 	srv.mu.Unlock()
 	go srv.listen()
 	go srv.accept()
-	go srv.forward()
+	if srv.listeners != nil {
+		go srv.forward()
+	}
 	return nil
 }
 

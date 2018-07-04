@@ -67,7 +67,7 @@ func (n *node) read(packets chan<- Packet, lost chan<- uint16, kadelay int64) {
 		pkt := Packet{}
 		if err := Decode(b, &pkt); err != nil {
 			log.Printf("failed to decode packet, id: %v", n.id)
-			break
+			continue
 		}
 		if pkt.T == KeepAliveT {
 			if err := n.conn.SetReadDeadline(time.Now().Add(time.Duration(kadelay) * time.Second)); err != nil {
@@ -75,6 +75,7 @@ func (n *node) read(packets chan<- Packet, lost chan<- uint16, kadelay int64) {
 				lost <- n.id
 				return
 			}
+			continue
 		}
 		packets <- pkt
 	}
