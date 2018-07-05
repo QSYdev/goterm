@@ -2,6 +2,28 @@
 
 
 [[projects]]
+  name = "github.com/google/uuid"
+  packages = ["."]
+  revision = "064e2069ce9c359c118179501254f67d7d37ba24"
+  version = "0.2"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/paypal/gatt"
+  packages = [
+    ".",
+    "examples/option",
+    "linux",
+    "linux/cmd",
+    "linux/evt",
+    "linux/gioctl",
+    "linux/socket",
+    "linux/util",
+    "xpc"
+  ]
+  revision = "4ae819d591cfc94c496c45deb55928469542beec"
+
+[[projects]]
   name = "github.com/pkg/errors"
   packages = ["."]
   revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
@@ -27,6 +49,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "4c12f8292b91fcfa1a000d5b20010861904eb3baa99f8450145cd18b2cd71a2a"
+  inputs-digest = "c8c4bb0ad0acb22b59dbb874aa47b8c3290135f4a1266f45599e5ed70645a875"
   solver-name = "gps-cdcl"
   solver-version = 1
