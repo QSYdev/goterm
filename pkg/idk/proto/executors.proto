@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package idk;
+option go_package = "github.com/qsydev/goterm/pkg/idk";
+
+enum Color {
+	RED = 0;
+	GREEN = 1;
+	BLUE = 2;
+	MAGENTA = 3;
+	CYAN = 4;
+	YELLOW = 5;
+	WHITE = 6;
+}
+
+message PlayerExecutor {
+	repeated Color colors = 1;
+	int64 timeout = 2;
+	int64 delay = 3;
+	int64 duration = 4;
+	int32 steps = 5;
+	bool stopOnTimeout = 6;
+	bool waitForAllPlayers = 7;
+}
+
+message CustomExecutor {
+	int64 duration = 1;
+	message Step {
+		message NodeConfig {
+			int32 id = 1;
+			int64 delay = 2;
+			Color color = 3;
+		}
+		repeated NodeConfig nodeConfigs = 1;
+		int64 timeout = 2;
+		string expression = 3;
+		bool stopOnTimeout = 4;
+	}
+	repeated Step steps = 2;
+}
