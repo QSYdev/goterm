@@ -1,6 +1,8 @@
 package idk
 
 import (
+	"log"
+
 	proto "github.com/golang/protobuf/proto"
 	"github.com/paypal/gatt"
 )
@@ -15,21 +17,35 @@ type Client interface {
 	NotifyDone()
 }
 
+const (
+	continuePacket = 0x00
+	endPacket      = 0x01
+)
+
 var (
-	serviceUUID    = gatt.UUID16(0xAAAA)
-	playerUUID     = gatt.UUID16(0xBBBB)
-	customUUID     = gatt.UUID16(0xCCCC)
-	notifyStepUUID = gatt.UUID16(0xDDDD)
-	notifyDoneUUID = gatt.UUID16(0xEEEE)
+	// ServiceUUID is the UUID of the idk service
+	ServiceUUID = gatt.UUID16(0xAAAA)
+	// PlayerUUID is the UUID of the create new player executor characteristic
+	PlayerUUID = gatt.UUID16(0xBBBB)
+	// CustomUUID is the UUID of the create new custom executor characteristic
+	CustomUUID = gatt.UUID16(0xCCCC)
+	// NotifyStepUUID is the UUID of the characteristic that notifies when a step is done
+	NotifyStepUUID = gatt.UUID16(0xDDDD)
+	// NotifyDoneUUID is the UUID of the characteristic that notifies when the routine is done
+	NotifyDoneUUID = gatt.UUID16(0xEEEE)
 )
 
 // NewService returns a new gatt service with the characteristics
 // of the IDK protocol.
 func NewService(client Client) *gatt.Service {
-	s := gatt.NewService(gatt.MustParseUUID(serviceUUID.String()))
-	s.AddCharacteristic(gatt.MustParseUUID(playerUUID.String())).HandleWriteFunc(
+	bytes := []byte{}
+	log.Printf("player UUID: %s", gatt.MustParseUUID(PlayerUUID.String()))
+	log.Printf("custom UUID: %s", gatt.MustParseUUID(CustomUUID.String()))
+	s := gatt.NewService(gatt.MustParseUUID(ServiceUUID.String()))
+	s.AddCharacteristic(gatt.MustParseUUID(PlayerUUID.String())).HandleWriteFunc(
 		func(r gatt.Request, data []byte) (status byte) {
 			p := &PlayerExecutor{}
+			log.Printf("len(data)=%v", len(data))
 			if err := proto.Unmarshal(data, p); err != nil {
 				// invalid bytes
 				return gatt.StatusUnexpectedError
@@ -37,15 +53,26 @@ func NewService(client Client) *gatt.Service {
 			client.NewPlayerExecutor(p)
 			return gatt.StatusSuccess
 		})
-	s.AddCharacteristic(gatt.MustParseUUID(customUUID.String())).HandleWriteFunc(
+	s.AddCharacteristic(gatt.MustParseUUID(CustomUUID.String())).HandleWriteFunc(
 		func(r gatt.Request, data []byte) (status byte) {
+			log.Printf("len(data)=%v", len(data))
+			if data[0] == continuePacket {
+				log.Printf("continue packet")
+				bytes = append(bytes, data[1:]...)
+				return gatt.StatusSuccess
+			}
+			log.Printf("last packet")
+			bytes = append(bytes, data[1:]...)
 			c := &CustomExecutor{}
-			if err := proto.Unmarshal(data, c); err != nil {
+			if err := proto.Unmarshal(bytes, c); err != nil {
 				// invalid bytes
+				log.Printf("CustomExecutor: invalid bytes")
+				bytes = []byte{}
 				return gatt.StatusUnexpectedError
 			}
 			client.NewCustomExecutor(c)
+			bytes = []byte{}
 			return gatt.StatusSuccess
 		})
-	return nil
+	return s
 }
