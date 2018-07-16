@@ -6,11 +6,10 @@ import (
 	"log"
 	"net"
 	"os"
-	"time"
 
-	"github.com/google/uuid"
 	"github.com/paypal/gatt"
 	"github.com/paypal/gatt/examples/option"
+	"github.com/qsydev/goterm/pkg/idk"
 	"github.com/qsydev/goterm/pkg/qsy"
 )
 
@@ -33,46 +32,29 @@ func (r r) NewNode(id uint16) {
 	log.Printf("new node: %v", id)
 }
 
-func NewTerminalService() *gatt.Service {
-	s := gatt.NewService(gatt.MustParseUUID(uuid.New().String()))
-	s.AddCharacteristic(gatt.MustParseUUID(uuid.New().String())).HandleReadFunc(
-		func(rsp gatt.ResponseWriter, req *gatt.ReadRequest) {
-			go func() {
-				t := time.NewTicker(time.Second)
-				color := false
-				for {
-					select {
-					case <-t.C:
-						var c qsy.Color
-						if !color {
-							c = qsy.NoColor
-						} else {
-							c = qsy.Blue
-						}
-						color = !color
-						srv.Send(qsy.NewPacket(qsy.CommandT, uint16(19), c, uint32(0), uint16(0), false, false))
-						srv.Send(qsy.NewPacket(qsy.CommandT, uint16(20), c, uint32(0), uint16(0), false, false))
-					}
-				}
-			}()
-		})
-	s.AddCharacteristic(gatt.MustParseUUID(uuid.New().String())).HandleReadFunc(
-		func(rsp gatt.ResponseWriter, req *gatt.ReadRequest) {
-			cancel()
-		})
-	return s
+func (r r) NewPlayerExecutor(p *idk.PlayerExecutor) {
+	log.Printf("Player executor: %s", p.String())
+}
+
+func (r r) NewCustomExecutor(c *idk.CustomExecutor) {
+	log.Printf("Custom executor: %s", c.String())
+}
+
+func (r r) NotifyStep() {
+}
+
+func (r r) NotifyDone() {
 }
 
 func main() {
 	var err error
-	srv, err = qsy.NewServer(ctx, os.Stdout, "wlan0", net.IP{224, 0, 0, 12}, "", "10.0.0.1", r{})
+	client := r{}
+	srv, err = qsy.NewServer(ctx, os.Stdout, "wlan0", net.IP{224, 0, 0, 12}, "", "10.0.0.1", client)
 	if err != nil {
-		log.Printf("failed to create server: %s", err)
-		os.Exit(1)
+		log.Fatalf("failed to create server: %s", err)
 	}
-	if err := srv.ListenAndAccept(); err != nil {
-		log.Printf("failed to start server: %s", err)
-		os.Exit(1)
+	if err = srv.ListenAndAccept(); err != nil {
+		log.Fatalf("failed to start server: %s", err)
 	}
 	d, err := gatt.NewDevice(option.DefaultServerOptions...)
 	if err != nil {
@@ -90,7 +72,7 @@ func main() {
 		fmt.Printf("State: %s\n", s)
 		switch s {
 		case gatt.StatePoweredOn:
-			s := NewTerminalService()
+			s := idk.NewService(client)
 			d.AddService(s)
 			uuids := []gatt.UUID{s.UUID()}
 			d.AdvertiseNameAndServices("terminal", uuids)
