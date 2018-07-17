@@ -43,7 +43,47 @@ func (r r) NewCustomExecutor(c *idk.CustomExecutor) {
 func (r r) NotifyStep() {
 }
 
-func (r r) NotifyDone() {
+func (r r) NotifyDone() <-chan *idk.Result {
+	c := make(chan *idk.Result, 1)
+	e := []*idk.Event{
+		&idk.Event{
+			Type:  idk.Event_Start,
+			Delay: int64(0),
+			Step:  int32(0),
+			Node:  int32(0),
+		},
+		&idk.Event{
+			Type:  idk.Event_Touche,
+			Delay: int64(1000),
+			Step:  int32(1),
+			Node:  int32(1),
+		},
+		&idk.Event{
+			Type:  idk.Event_Touche,
+			Delay: int64(500),
+			Step:  int32(2),
+			Node:  int32(1),
+		},
+		&idk.Event{
+			Type:  idk.Event_StepTimeout,
+			Delay: int64(1001),
+			Step:  int32(2),
+			Node:  int32(1),
+		},
+		&idk.Event{
+			Type:  idk.Event_End,
+			Delay: int64(0),
+			Step:  int32(2),
+			Node:  int32(0),
+		},
+	}
+	res := &idk.Result{
+		Events:   e,
+		Steps:    3,
+		Duration: int64(10000),
+	}
+	c <- res
+	return c
 }
 
 func main() {

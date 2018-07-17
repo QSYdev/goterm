@@ -2,6 +2,7 @@ package idk
 
 import (
 	"log"
+	"time"
 
 	proto "github.com/golang/protobuf/proto"
 	"github.com/paypal/gatt"
@@ -13,13 +14,13 @@ type Client interface {
 	NewPlayerExecutor(pe *PlayerExecutor)
 	// TODO: func to handle the step event
 	NotifyStep()
-	// TODO: func to handle the done event
-	NotifyDone()
+	NotifyDone() <-chan *Result
 }
 
 const (
-	continuePacket = 0x00
-	endPacket      = 0x01
+	continuePacket   = 0x00
+	endPacket        = 0x01
+	resultPacketSize = 0x13
 )
 
 var (
@@ -39,8 +40,6 @@ var (
 // of the IDK protocol.
 func NewService(client Client) *gatt.Service {
 	bytes := []byte{}
-	log.Printf("player UUID: %s", gatt.MustParseUUID(PlayerUUID.String()))
-	log.Printf("custom UUID: %s", gatt.MustParseUUID(CustomUUID.String()))
 	s := gatt.NewService(gatt.MustParseUUID(ServiceUUID.String()))
 	s.AddCharacteristic(gatt.MustParseUUID(PlayerUUID.String())).HandleWriteFunc(
 		func(r gatt.Request, data []byte) (status byte) {
@@ -73,6 +72,26 @@ func NewService(client Client) *gatt.Service {
 			client.NewCustomExecutor(c)
 			bytes = []byte{}
 			return gatt.StatusSuccess
+		})
+	s.AddCharacteristic(gatt.MustParseUUID(NotifyDoneUUID.String())).HandleNotifyFunc(
+		func(r gatt.Request, n gatt.Notifier) {
+			results, err := proto.Marshal(<-client.NotifyDone())
+			if err != nil {
+				log.Printf("Results: invalid bytes")
+				results = []byte{}
+				return
+			}
+			for i := 0; i <= len(results)/resultPacketSize; i++ {
+				b := []byte{continuePacket}
+				packetSize := resultPacketSize
+				if i == len(results)/resultPacketSize {
+					b[0] = endPacket
+					packetSize = len(results) - resultPacketSize*i
+				}
+				b = append(b, results[i*resultPacketSize:i*resultPacketSize+packetSize]...)
+				n.Write(b)
+				time.Sleep(100 * time.Millisecond)
+			}
 		})
 	return s
 }
