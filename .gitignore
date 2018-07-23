@@ -4,3 +4,4 @@ cmd/test/test
 *.test
 *.out
 *.pb.go
+cmd/ble/ble

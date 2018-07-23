@@ -12,15 +12,17 @@ import (
 type Client interface {
 	NewCustomExecutor(ce *CustomExecutor)
 	NewPlayerExecutor(pe *PlayerExecutor)
-	// TODO: func to handle the step event
-	NotifyStep()
+	StopExecutor() error
+	NotifyStep() <-chan Event
 	NotifyDone() <-chan *Result
 }
 
 const (
-	continuePacket   = 0x00
-	endPacket        = 0x01
-	resultPacketSize = 0x13
+	continuePacket      = 0x00
+	endPacket           = 0x01
+	errorDecodingPacket = 0x02
+	resultPacketSize    = 0x13
+	packetInterval      = 50
 )
 
 var (
@@ -34,6 +36,8 @@ var (
 	NotifyStepUUID = gatt.UUID16(0xDDDD)
 	// NotifyDoneUUID is the UUID of the characteristic that notifies when the routine is done
 	NotifyDoneUUID = gatt.UUID16(0xEEEE)
+	// StopExecutorUUID is the UUID of the characteristic that stops the current executor.
+	StopExecutorUUID = gatt.UUID16(0xFFFF)
 )
 
 // NewService returns a new gatt service with the characteristics
@@ -54,18 +58,13 @@ func NewService(client Client) *gatt.Service {
 		})
 	s.AddCharacteristic(gatt.MustParseUUID(CustomUUID.String())).HandleWriteFunc(
 		func(r gatt.Request, data []byte) (status byte) {
-			log.Printf("len(data)=%v", len(data))
 			if data[0] == continuePacket {
-				log.Printf("continue packet")
 				bytes = append(bytes, data[1:]...)
 				return gatt.StatusSuccess
 			}
-			log.Printf("last packet")
 			bytes = append(bytes, data[1:]...)
 			c := &CustomExecutor{}
 			if err := proto.Unmarshal(bytes, c); err != nil {
-				// invalid bytes
-				log.Printf("CustomExecutor: invalid bytes")
 				bytes = []byte{}
 				return gatt.StatusUnexpectedError
 			}
@@ -73,12 +72,30 @@ func NewService(client Client) *gatt.Service {
 			bytes = []byte{}
 			return gatt.StatusSuccess
 		})
+	s.AddCharacteristic(gatt.MustParseUUID(StopExecutorUUID.String())).HandleWriteFunc(
+		func(r gatt.Request, data []byte) (status byte) {
+			if err := client.StopExecutor(); err != nil {
+				log.Printf("failed to stop executor: %s", err)
+			}
+			return gatt.StatusUnexpectedError
+		})
+	s.AddCharacteristic(gatt.MustParseUUID(NotifyStepUUID.String())).HandleNotifyFunc(
+		func(r gatt.Request, n gatt.Notifier) {
+			for e := range client.NotifyStep() {
+				b, err := proto.Marshal(&e)
+				if err != nil {
+					n.Write([]byte{errorDecodingPacket})
+					return
+				}
+				n.Write(b)
+			}
+		})
 	s.AddCharacteristic(gatt.MustParseUUID(NotifyDoneUUID.String())).HandleNotifyFunc(
 		func(r gatt.Request, n gatt.Notifier) {
 			results, err := proto.Marshal(<-client.NotifyDone())
 			if err != nil {
-				log.Printf("Results: invalid bytes")
 				results = []byte{}
+				n.Write([]byte{errorDecodingPacket})
 				return
 			}
 			for i := 0; i <= len(results)/resultPacketSize; i++ {
@@ -90,7 +107,7 @@ func NewService(client Client) *gatt.Service {
 				}
 				b = append(b, results[i*resultPacketSize:i*resultPacketSize+packetSize]...)
 				n.Write(b)
-				time.Sleep(100 * time.Millisecond)
+				time.Sleep(packetInterval * time.Millisecond)
 			}
 		})
 	return s
