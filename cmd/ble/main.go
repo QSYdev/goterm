@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"log"
 	"net"
 	"os"
@@ -40,7 +40,12 @@ func (r r) NewCustomExecutor(c *idk.CustomExecutor) {
 	log.Printf("Custom executor: %s", c.String())
 }
 
-func (r r) NotifyStep() {
+func (r r) NotifyStep() <-chan idk.Event {
+	return make(chan idk.Event)
+}
+
+func (r r) StopExecutor() error {
+	return errors.New("TODO")
 }
 
 func (r r) NotifyDone() <-chan *idk.Result {
@@ -98,23 +103,21 @@ func main() {
 	}
 	d, err := gatt.NewDevice(option.DefaultServerOptions...)
 	if err != nil {
-		log.Fatalf("Failed to open device, err: %s", err)
+		log.Fatalf("failed to open device, err: %s", err)
 	}
-
-	// Register optional handlers.
+	if err := d.StopAdvertising(); err != nil {
+		log.Fatalf("failed to stop advertising: %s", err)
+	}
 	d.Handle(
 		gatt.CentralConnected(func(c gatt.Central) { log.Println("Connect: ", c.ID()) }),
 		gatt.CentralDisconnected(func(c gatt.Central) { log.Println("Disconnect: ", c.ID()) }),
 	)
-
-	// A mandatory handler for monitoring device state.
 	onStateChanged := func(d gatt.Device, s gatt.State) {
-		fmt.Printf("State: %s\n", s)
 		switch s {
 		case gatt.StatePoweredOn:
-			s := idk.NewService(client)
-			d.AddService(s)
-			uuids := []gatt.UUID{s.UUID()}
+			svc := idk.NewService(client)
+			d.AddService(svc)
+			uuids := []gatt.UUID{svc.UUID()}
 			d.AdvertiseNameAndServices("terminal", uuids)
 		default:
 		}
