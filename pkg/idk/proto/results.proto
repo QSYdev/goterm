@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package idk;
+option go_package = "github.com/qsydev/goterm/pkg/idk";
+
+message Event {
+	enum Type {
+		Touche = 0;
+		StepTimeout = 1;
+		RoutineTimeout = 2;
+		Start = 3;
+		End = 4;
+	}
+	Type type = 1;
+	int64 delay = 2;
+	int32 step = 3;
+	int32 node = 4;
+}
+
+message Result {
+	repeated Event events = 1;
+	int32 steps = 2;
+	int64 duration = 3;
+}

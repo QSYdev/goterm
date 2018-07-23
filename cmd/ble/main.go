@@ -2,15 +2,14 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"log"
 	"net"
 	"os"
-	"time"
 
-	"github.com/google/uuid"
 	"github.com/paypal/gatt"
 	"github.com/paypal/gatt/examples/option"
+	"github.com/qsydev/goterm/pkg/idk"
 	"github.com/qsydev/goterm/pkg/qsy"
 )
 
@@ -33,66 +32,92 @@ func (r r) NewNode(id uint16) {
 	log.Printf("new node: %v", id)
 }
 
-func NewTerminalService() *gatt.Service {
-	s := gatt.NewService(gatt.MustParseUUID(uuid.New().String()))
-	s.AddCharacteristic(gatt.MustParseUUID(uuid.New().String())).HandleReadFunc(
-		func(rsp gatt.ResponseWriter, req *gatt.ReadRequest) {
-			go func() {
-				t := time.NewTicker(time.Second)
-				color := false
-				for {
-					select {
-					case <-t.C:
-						var c qsy.Color
-						if !color {
-							c = qsy.NoColor
-						} else {
-							c = qsy.Blue
-						}
-						color = !color
-						srv.Send(qsy.NewPacket(qsy.CommandT, uint16(19), c, uint32(0), uint16(0), false, false))
-						srv.Send(qsy.NewPacket(qsy.CommandT, uint16(20), c, uint32(0), uint16(0), false, false))
-					}
-				}
-			}()
-		})
-	s.AddCharacteristic(gatt.MustParseUUID(uuid.New().String())).HandleReadFunc(
-		func(rsp gatt.ResponseWriter, req *gatt.ReadRequest) {
-			cancel()
-		})
-	return s
+func (r r) NewPlayerExecutor(p *idk.PlayerExecutor) {
+	log.Printf("Player executor: %s", p.String())
+}
+
+func (r r) NewCustomExecutor(c *idk.CustomExecutor) {
+	log.Printf("Custom executor: %s", c.String())
+}
+
+func (r r) NotifyStep() <-chan idk.Event {
+	return make(chan idk.Event)
+}
+
+func (r r) StopExecutor() error {
+	return errors.New("TODO")
+}
+
+func (r r) NotifyDone() <-chan *idk.Result {
+	c := make(chan *idk.Result, 1)
+	e := []*idk.Event{
+		&idk.Event{
+			Type:  idk.Event_Start,
+			Delay: int64(0),
+			Step:  int32(0),
+			Node:  int32(0),
+		},
+		&idk.Event{
+			Type:  idk.Event_Touche,
+			Delay: int64(1000),
+			Step:  int32(1),
+			Node:  int32(1),
+		},
+		&idk.Event{
+			Type:  idk.Event_Touche,
+			Delay: int64(500),
+			Step:  int32(2),
+			Node:  int32(1),
+		},
+		&idk.Event{
+			Type:  idk.Event_StepTimeout,
+			Delay: int64(1001),
+			Step:  int32(2),
+			Node:  int32(1),
+		},
+		&idk.Event{
+			Type:  idk.Event_End,
+			Delay: int64(0),
+			Step:  int32(2),
+			Node:  int32(0),
+		},
+	}
+	res := &idk.Result{
+		Events:   e,
+		Steps:    3,
+		Duration: int64(10000),
+	}
+	c <- res
+	return c
 }
 
 func main() {
 	var err error
-	srv, err = qsy.NewServer(ctx, os.Stdout, "wlan0", net.IP{224, 0, 0, 12}, "", "10.0.0.1", r{})
+	client := r{}
+	srv, err = qsy.NewServer(ctx, os.Stdout, "wlan0", net.IP{224, 0, 0, 12}, "", "10.0.0.1", client)
 	if err != nil {
-		log.Printf("failed to create server: %s", err)
-		os.Exit(1)
+		log.Fatalf("failed to create server: %s", err)
 	}
-	if err := srv.ListenAndAccept(); err != nil {
-		log.Printf("failed to start server: %s", err)
-		os.Exit(1)
+	if err = srv.ListenAndAccept(); err != nil {
+		log.Fatalf("failed to start server: %s", err)
 	}
 	d, err := gatt.NewDevice(option.DefaultServerOptions...)
 	if err != nil {
-		log.Fatalf("Failed to open device, err: %s", err)
+		log.Fatalf("failed to open device, err: %s", err)
 	}
-
-	// Register optional handlers.
+	if err := d.StopAdvertising(); err != nil {
+		log.Fatalf("failed to stop advertising: %s", err)
+	}
 	d.Handle(
 		gatt.CentralConnected(func(c gatt.Central) { log.Println("Connect: ", c.ID()) }),
 		gatt.CentralDisconnected(func(c gatt.Central) { log.Println("Disconnect: ", c.ID()) }),
 	)
-
-	// A mandatory handler for monitoring device state.
 	onStateChanged := func(d gatt.Device, s gatt.State) {
-		fmt.Printf("State: %s\n", s)
 		switch s {
 		case gatt.StatePoweredOn:
-			s := NewTerminalService()
-			d.AddService(s)
-			uuids := []gatt.UUID{s.UUID()}
+			svc := idk.NewService(client)
+			d.AddService(svc)
+			uuids := []gatt.UUID{svc.UUID()}
 			d.AdvertiseNameAndServices("terminal", uuids)
 		default:
 		}

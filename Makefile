@@ -8,3 +8,6 @@ push-ble:
 	scp ./cmd/ble/ble pi@10.0.0.1:~/terminal-ble
 push-test:
 	scp ./cmd/test/test pi@10.0.0.1:~/terminal
+protoc:
+	protoc --proto_path=$(GOPATH)/src --go_out=$(GOPATH)/src $(PWD)/pkg/idk/proto/executors.proto
+	protoc --proto_path=$(GOPATH)/src --go_out=$(GOPATH)/src $(PWD)/pkg/idk/proto/results.proto
