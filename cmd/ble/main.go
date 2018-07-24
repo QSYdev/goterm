@@ -8,7 +8,7 @@ import (
 	"net"
 	"os"
 
-	"github.com/gogo/protobuf/proto"
+	proto "github.com/golang/protobuf/proto"
 	"github.com/paypal/gatt"
 	"github.com/paypal/gatt/examples/option"
 	"github.com/qsydev/goterm/internal/ble"
