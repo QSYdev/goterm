@@ -19,8 +19,6 @@ const (
 	endPacket      = 0x01
 	payloadSize    = 0x13
 	packetInterval = 100
-
-	delay = 2
 )
 
 var (
