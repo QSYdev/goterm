@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package idk;
 option go_package = "github.com/qsydev/goterm/internal/executor";
+import "github.com/qsydev/goterm/internal/executor/proto/executors.proto";
 
 message Event {
 	enum Type {
@@ -12,6 +13,7 @@ message Event {
 		End = 4;
 	}
 	Type type = 1;
+	Color color = 5;
 	int64 delay = 2;
 	int32 step = 3;
 	int32 node = 4;

@@ -11,6 +11,7 @@ enum Color {
 	CYAN = 4;
 	YELLOW = 5;
 	WHITE = 6;
+	NO_COLOR = 7;
 }
 
 message RandomExecutor {
@@ -21,14 +22,16 @@ message RandomExecutor {
 	int32 steps = 5;
 	bool stopOnTimeout = 6;
 	bool waitForAllPlayers = 7;
+	int32 nodes = 8;
+}
+
+message NodeConfig {
+	int32 id = 1;
+	int64 delay = 2;
+	Color color = 3;
 }
 
 message Step {
-	message NodeConfig {
-		int32 id = 1;
-		int64 delay = 2;
-		Color color = 3;
-	}
 	repeated NodeConfig nodeConfigs = 1;
 	int64 timeout = 2;
 	string expression = 3;
