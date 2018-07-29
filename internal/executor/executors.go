@@ -2,6 +2,7 @@ package executor
 
 import (
 	"errors"
+	"sync"
 	"time"
 )
 
@@ -31,10 +32,11 @@ type executor struct {
 	done   bool
 	events chan Event
 
-	stepTimer *time.Timer
-	step      *step
+	mu        sync.RWMutex
 	stepID    uint32
 	steps     uint32
+	stepTimer *time.Timer
+	step      *step
 
 	routineTimer  *time.Timer
 	duration      time.Duration
@@ -43,20 +45,26 @@ type executor struct {
 }
 
 func (e *executor) start() {
-	// TODO: routineTimeout if necessary
 	if e.duration != 0 {
 		e.routineTimer = time.AfterFunc(e.duration, e.routineTimeout)
 	}
+	e.stepID = 1
 	e.sendStep()
 }
 
 func (e *executor) touche(stepID, nodeID, delay uint32) {
+	e.mu.RLock()
 	if e.done || stepID != e.stepID {
+		e.mu.RUnlock()
 		return
 	}
+	e.mu.RUnlock()
 	if done := e.step.done(nodeID); !done {
 		return
 	}
+	e.mu.Lock()
+	e.stepID++
+	e.mu.Unlock()
 	e.nextStep()
 }
 
@@ -64,7 +72,9 @@ func (e *executor) nextStep() {
 	if e.stepTimer != nil {
 		e.stepTimer.Stop()
 	}
+	e.mu.RLock()
 	if e.stepID == e.steps {
+		e.mu.RUnlock()
 		e.done = true
 		if e.routineTimer != nil {
 			e.routineTimer.Stop()
@@ -72,11 +82,11 @@ func (e *executor) nextStep() {
 		e.routineEndEvent()
 		return
 	}
+	e.mu.RUnlock()
 	e.sendStep()
 }
 
 func (e *executor) sendStep() {
-	e.stepID++
 	e.step = e.getNextStep()
 	for _, nc := range e.step.NodeConfigs {
 		e.sender.Send(*nc)
@@ -89,6 +99,11 @@ func (e *executor) sendStep() {
 // stepTimeout listens on the currentTimeout channel, if the
 // step has timeout then it stops current step.
 func (e *executor) stepTimeout() {
+	e.mu.Lock()
+	if e.stepID < e.steps {
+		e.stepID++
+	}
+	e.mu.Unlock()
 	e.stepTimeoutEvent()
 	for _, nc := range e.step.NodeConfigs {
 		e.sender.Send(NodeConfig{Id: nc.GetId(), Color: Color_NO_COLOR})
@@ -106,20 +121,25 @@ func (e *executor) routineTimeout() {
 }
 
 func (e *executor) routineTimeoutEvent() {
+	e.mu.RLock()
 	e.events <- Event{
 		Type: Event_RoutineTimeout,
 		Step: e.stepID,
 	}
+	e.mu.RUnlock()
 }
 
 func (e *executor) stepTimeoutEvent() {
+	e.mu.RLock()
 	e.events <- Event{
 		Type: Event_StepTimeout,
 		Step: e.stepID,
 	}
+	e.mu.RUnlock()
 }
 
 func (e *executor) toucheEvent(nodeID, delay uint32) {
+	e.mu.RLock()
 	e.events <- Event{
 		Type:  Event_Touche,
 		Color: e.step.nodeColor(nodeID),
@@ -127,6 +147,7 @@ func (e *executor) toucheEvent(nodeID, delay uint32) {
 		Step:  e.stepID,
 		Node:  nodeID,
 	}
+	e.mu.RUnlock()
 }
 
 func (e *executor) routineEndEvent() {

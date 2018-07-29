@@ -82,18 +82,13 @@ func Parse(expression string) Node {
 func infixToPostfix(infix string) string {
 	var stack Stack
 	postfix := ""
-	var j int
-	for i, c := range infix {
+	for _, c := range infix {
 		switch c {
 		case ' ':
 		case andOp, orOp:
-			for !stack.Empty() {
-				top, _ := stack.Top().(rune)
-				if top == openParen {
-					break
-				}
+			for !stack.Empty() && (precedence(c) <= precedence(stack.Top())) {
+				top, _ := stack.Pop().(rune)
 				postfix += " " + string(top)
-				stack.Pop()
 			}
 			stack.Push(c)
 		case openParen:
@@ -109,15 +104,7 @@ func infixToPostfix(infix string) string {
 			}
 			stack.Pop()
 		default:
-			if i < j {
-				break
-			}
-			j = i
-			number := ""
-			for ; j < len(infix) && (infix[j] >= '0' && infix[j] <= '9'); j++ {
-				number = number + string(infix[j])
-			}
-			postfix += " " + number
+			postfix += " " + string(c)
 		}
 	}
 	for !stack.Empty() {
@@ -125,4 +112,18 @@ func infixToPostfix(infix string) string {
 		postfix += " " + string(str)
 	}
 	return strings.TrimSpace(postfix)
+}
+
+func precedence(v interface{}) int {
+	r, _ := v.(rune)
+	switch r {
+	case orOp:
+		return 1
+	case andOp:
+		return 2
+	case openParen:
+		return 0
+	default:
+		return -1
+	}
 }
