@@ -13,6 +13,16 @@ var (
 	// ErrInvalidExecutor is the error returned when the
 	// executor is not valid.
 	ErrInvalidExecutor = errors.New("Executor can't be nil")
+
+	// CustomExecID is the identifier that identifies a custom
+	// executor.
+	CustomExecID byte = 0x14
+	// RandomExecID is the identifier that identifies a random
+	// executor.
+	RandomExecID byte = 0x15
+	// StopExecID is the identifier that identifies the stop
+	// executor operation.
+	StopExecID byte = 0xFF
 )
 
 const (
@@ -30,7 +40,7 @@ type Sender interface {
 // and exposes the events that happen durinig the
 // execution.
 type Executor interface {
-	Touche(stepID, nodeID, delay int32)
+	Touche(stepID, nodeID, delay uint32)
 	Stop() error
 	Start(sender Sender) error
 	Events() <-chan Event
@@ -51,6 +61,30 @@ type executor struct {
 	duration      time.Duration
 	stopOnTimeout bool
 	getNextStep   func() *step
+}
+
+// Stop stops the current execution, if there is no execution
+// it returns an error.
+func (e *executor) Stop() error {
+	if e.done {
+		return errors.New("can't stop stopped executor")
+	}
+	e.done = true
+	if e.stepTimer != nil {
+		e.stepTimer.Stop()
+	}
+	if e.routineTimer != nil {
+		e.routineTimer.Stop()
+	}
+	e.cancelStep()
+	e.routineEndEvent()
+	close(e.events)
+	return nil
+}
+
+// Events returns the channel were events are sent.
+func (e *executor) Events() <-chan Event {
+	return e.events
 }
 
 func (e *executor) start() {
@@ -89,6 +123,7 @@ func (e *executor) nextStep() {
 			e.routineTimer.Stop()
 		}
 		e.routineEndEvent()
+		close(e.events)
 		return
 	}
 	e.mu.RUnlock()
@@ -120,6 +155,7 @@ func (e *executor) stepTimeout() {
 	if e.stopOnTimeout {
 		e.done = true
 		e.routineEndEvent()
+		close(e.events)
 		return
 	}
 	e.nextStep()
@@ -138,6 +174,7 @@ func (e *executor) routineTimeout() {
 	e.done = true
 	e.cancelStep()
 	e.routineTimeoutEvent()
+	close(e.events)
 }
 
 func (e *executor) routineTimeoutEvent() {

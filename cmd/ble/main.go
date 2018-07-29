@@ -35,29 +35,17 @@ func (r r) NewNode(id uint16) {
 }
 
 func (r r) Write(data []byte) error {
-	// TODO: data will have the type of packet in the first byte
-	// Type could be RandomExecutor, CustomExecutor or StopExecutor
-	// this types will be defined later in the executors package.
-	// 0x14 is custom executor, move to variable
-	// 0x15 is random executor, move to variable
-	// 0xFF is stop executor, move to variable
 	t := data[0]
 	switch t {
-	case 0x14:
-		// TODO: this will not be used this way, once we have
-		// the executor package we defer the creation and unmarshling
-		// to that pacakge
-		ce := &executor.CustomExecutor{}
+	case executor.CustomExecID:
+		ce := &executor.Custom{}
 		if err := proto.Unmarshal(data[1:], ce); err != nil {
 			log.Printf("failed decoding custom : %s", err)
 			return errors.New("failed to decode custom executor")
 		}
 		fmt.Println(ce)
 		return nil
-	case 0x15:
-		// TODO: this will not be used this way, once we have
-		// the executor package we defer the creation and unmarshling
-		// to that pacakge
+	case executor.RandomExecID:
 		re := &executor.Random{}
 		if err := proto.Unmarshal(data, re); err != nil {
 			log.Printf("failed decoding random executor: %s", err)
@@ -65,70 +53,20 @@ func (r r) Write(data []byte) error {
 		}
 		fmt.Println(re)
 		return nil
-	case 0xFF:
-		// TODO: stop executor if running
+	case executor.StopExecID:
 	}
 	return nil
 }
 
 func (r r) Notify() <-chan []byte {
-	// Sends bytes on the data, the first byte
-	// is used to specify if there was an error or if
-	// all went well.
 	c := make(chan []byte, 1)
-	e := []*executor.Event{
-		&executor.Event{
-			Type:  executor.Event_Start,
-			Delay: uint32(0),
-			Step:  uint32(0),
-			Node:  uint32(0),
-		},
-		&executor.Event{
-			Type:  executor.Event_Touche,
-			Delay: uint32(1000),
-			Step:  uint32(1),
-			Node:  uint32(1),
-		},
-		&executor.Event{
-			Type:  executor.Event_Touche,
-			Delay: uint32(500),
-			Step:  uint32(2),
-			Node:  uint32(1),
-		},
-		&executor.Event{
-			Type:  executor.Event_StepTimeout,
-			Delay: uint32(1001),
-			Step:  uint32(2),
-			Node:  uint32(1),
-		},
-		&executor.Event{
-			Type:  executor.Event_End,
-			Delay: uint32(0),
-			Step:  uint32(2),
-			Node:  uint32(0),
-		},
-	}
-	res := &executor.Result{
-		Events:   e,
-		Steps:    3,
-		Duration: uint32(10000),
-	}
-	b, err := proto.Marshal(res)
-	if err != nil {
-		// TODO: 0x01 indicates some error happened
-		// extract this to a variable in some package
-		b = []byte{0x01}
-	}
-	// TODO: 0x00 indicates success, should be a variable
-	// in some package
-	c <- append([]byte{0x00}, b...)
 	return c
 }
 
 func main() {
 	var err error
 	client := r{}
-	srv, err = qsy.NewServer(ctx, os.Stdout, "wlan0", net.IP{224, 0, 0, 12}, "", "10.0.0.1", client)
+	srv, err = qsy.NewServer(ctx, os.Stdout, "wlan0", net.IP{224, 0, 0, 12}, "10.0.0.1", client)
 	if err != nil {
 		log.Fatalf("failed to create server: %s", err)
 	}
