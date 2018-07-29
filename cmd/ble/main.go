@@ -19,12 +19,11 @@ import (
 var srv *qsy.Server
 var ctx, cancel = context.WithCancel(context.Background())
 
-type r struct{}
+type r struct {
+	executor executor.Executor
+}
 
 func (r r) Receive(p qsy.Packet) {
-	if p.T == qsy.KeepAliveT {
-		log.Printf("keep alive node: %v", p.ID)
-	}
 }
 
 func (r r) LostNode(id uint16) {
@@ -59,7 +58,7 @@ func (r r) Write(data []byte) error {
 		// TODO: this will not be used this way, once we have
 		// the executor package we defer the creation and unmarshling
 		// to that pacakge
-		re := &executor.RandomExecutor{}
+		re := &executor.Random{}
 		if err := proto.Unmarshal(data, re); err != nil {
 			log.Printf("failed decoding random executor: %s", err)
 			return errors.New("failed to decode random executor")
@@ -80,39 +79,39 @@ func (r r) Notify() <-chan []byte {
 	e := []*executor.Event{
 		&executor.Event{
 			Type:  executor.Event_Start,
-			Delay: int64(0),
-			Step:  int32(0),
-			Node:  int32(0),
+			Delay: uint32(0),
+			Step:  uint32(0),
+			Node:  uint32(0),
 		},
 		&executor.Event{
 			Type:  executor.Event_Touche,
-			Delay: int64(1000),
-			Step:  int32(1),
-			Node:  int32(1),
+			Delay: uint32(1000),
+			Step:  uint32(1),
+			Node:  uint32(1),
 		},
 		&executor.Event{
 			Type:  executor.Event_Touche,
-			Delay: int64(500),
-			Step:  int32(2),
-			Node:  int32(1),
+			Delay: uint32(500),
+			Step:  uint32(2),
+			Node:  uint32(1),
 		},
 		&executor.Event{
 			Type:  executor.Event_StepTimeout,
-			Delay: int64(1001),
-			Step:  int32(2),
-			Node:  int32(1),
+			Delay: uint32(1001),
+			Step:  uint32(2),
+			Node:  uint32(1),
 		},
 		&executor.Event{
 			Type:  executor.Event_End,
-			Delay: int64(0),
-			Step:  int32(2),
-			Node:  int32(0),
+			Delay: uint32(0),
+			Step:  uint32(2),
+			Node:  uint32(0),
 		},
 	}
 	res := &executor.Result{
 		Events:   e,
 		Steps:    3,
-		Duration: int64(10000),
+		Duration: uint32(10000),
 	}
 	b, err := proto.Marshal(res)
 	if err != nil {

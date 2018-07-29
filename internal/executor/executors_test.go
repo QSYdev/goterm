@@ -1,39 +1,94 @@
 package executor
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
-type s struct{}
-
-func (s) Send(config NodeConfig) {
-	// do nothing
+type s struct {
+	r chan uint32
 }
 
-func TestRandomTouche(t *testing.T) {
-	e := NewRandom(&RandomExecutor{
-		Colors:            []Color{Color_BLUE, Color_RED},
-		Timeout:           int64(3000),
-		Delay:             int64(500),
-		Duration:          int64(10000),
-		Steps:             5,
-		Nodes:             2,
-		StopOnTimeout:     false,
-		WaitForAllPlayers: false,
-	}, s{})
-	e.events = make(chan Event, 1)
-	e.step = &Step{
-		NodeConfigs: []*NodeConfig{&NodeConfig{Id: 1, Delay: int64(500), Color: Color_BLUE}},
+func (s *s) Send(config NodeConfig) {
+	s.r <- config.GetId()
+}
+
+func TestStepTimeout(t *testing.T) {
+	t.Parallel()
+
+	schan := make(chan uint32, 1)
+	e := &executor{
+		sender:        &s{r: schan},
+		events:        make(chan Event, 2),
+		stopOnTimeout: true,
+		step:          &Step{NodeConfigs: []*NodeConfig{&NodeConfig{Id: 1}}},
 	}
-	if err := e.Touche(*e.step.NodeConfigs[0]); err != nil {
-		t.Fatalf("touche of existing node config should succeed")
+	e.stepTimer = time.AfterFunc(10*time.Millisecond, e.stepTimeout)
+	if event := <-e.events; event.GetType() != Event_StepTimeout {
+		t.Fatalf("expected step timeout event but got %s", event.GetType())
 	}
-	event := <-e.events
-	if _, ok := <-e.events; ok {
-		t.Fatalf("there should only be one event")
+	if event := <-e.events; event.GetType() != Event_End {
+		t.Fatalf("expected routine end event but got %s", event.GetType())
 	}
-	if event.GetType() != Event_Touche {
-		t.Fatalf("expected event to be touche, got %s", event.GetType())
+	if nid := <-schan; nid != 1 {
+		t.Fatalf("expected node id 1 to be sent but go %d", nid)
 	}
-	if err := e.Touche(NodeConfig{Id: 2, Delay: int64(500), Color: Color_CYAN}); err == nil {
-		t.Fatalf("touche of non existing node config should not succeed")
+
+	e = &executor{
+		sender:        &s{r: schan},
+		events:        make(chan Event, 1),
+		stopOnTimeout: false,
+		step:          &Step{NodeConfigs: []*NodeConfig{&NodeConfig{Id: 1}}},
+		getNextStep:   func() *Step { return &Step{NodeConfigs: []*NodeConfig{&NodeConfig{Id: 2}}} },
+		steps:         3,
+	}
+	e.stepTimer = time.AfterFunc(10*time.Millisecond, e.stepTimeout)
+	if event := <-e.events; event.GetType() != Event_StepTimeout {
+		t.Fatalf("expected step timeout event but got %s", event.GetType())
+	}
+	if nid := <-schan; nid != 1 {
+		t.Fatalf("expected node id 1 to be sent but go %d", nid)
+	}
+	if nid := <-schan; nid != 2 {
+		t.Fatalf("expected node id 2 to be sent but got %d", nid)
+	}
+}
+
+func TestSendStep(t *testing.T) {
+	t.Parallel()
+
+	schan := make(chan uint32, 2)
+	e := &executor{
+		stepID: 1,
+		sender: &s{r: schan},
+		getNextStep: func() *Step {
+			return &Step{Timeout: 1, NodeConfigs: []*NodeConfig{&NodeConfig{Id: 1}, &NodeConfig{Id: 2}}}
+		},
+	}
+	e.sendStep()
+	if nid := <-schan; nid != 1 {
+		t.Fatalf("expected node id 1 to be sent but got %d", nid)
+	}
+	if nid := <-schan; nid != 2 {
+		t.Fatalf("expected node id 2 to be sent but got %d", nid)
+	}
+	if e.stepTimer == nil {
+		t.Fatalf("step timer should be set")
+	}
+}
+
+func TestNextStep(t *testing.T) {
+	e := &executor{
+		sender: &s{},
+		stepID: 1,
+		steps:  1,
+		events: make(chan Event, 1),
+	}
+	e.nextStep()
+	if !e.done {
+		t.Fatalf("expected routine to be done")
+	}
+	if event := <-e.events; event.GetType() != Event_End {
+		t.Fatalf("expected event to be routine end but got %s", event.GetType())
 	}
 }

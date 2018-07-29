@@ -20,52 +20,134 @@ type Sender interface {
 // and exposes the events that happen durinig the
 // execution.
 type Executor interface {
-	Touche(node NodeConfig) error
+	Touche(stepID, nodeID, delay int32)
 	Stop() error
-	Start()
+	Start(sender Sender) error
 	Events() <-chan Event
 }
 
 type executor struct {
-	events         chan Event
-	done           bool
-	step           *Step
-	currentTimeout *time.Timer
-	stepID         int32
+	sender Sender
+	done   bool
+	events chan Event
+
+	stepTimer *time.Timer
+	step      *Step
+	stepID    uint32
+	steps     uint32
+
+	routineTimer  *time.Timer
+	duration      time.Duration
+	stopOnTimeout bool
+	getNextStep   func() *Step
 }
 
-func (e executor) routineTimeoutEvent() {
+func (e *executor) start() {
+	// TODO: routineTimeout if necessary
+	if e.duration != 0 {
+		e.routineTimer = time.AfterFunc(e.duration, e.routineTimeout)
+	}
+	e.sendStep()
+}
+
+func (e *executor) touche(stepID, nodeID, delay uint32) {
+	if e.done || stepID != e.stepID {
+		return
+	}
+	if done := e.step.done(nodeID); !done {
+		return
+	}
+	e.nextStep()
+}
+
+func (e *executor) nextStep() {
+	if e.stepTimer != nil {
+		e.stepTimer.Stop()
+	}
+	if e.stepID == e.steps {
+		e.done = true
+		if e.routineTimer != nil {
+			e.routineTimer.Stop()
+		}
+		e.routineEndEvent()
+		return
+	}
+	e.sendStep()
+}
+
+func (e *executor) sendStep() {
+	e.stepID++
+	e.step = e.getNextStep()
+	for _, nc := range e.step.NodeConfigs {
+		e.sender.Send(*nc)
+	}
+	if e.step.GetTimeout() != 0 {
+		e.stepTimer = time.AfterFunc(time.Duration(e.step.GetTimeout())*time.Millisecond, e.stepTimeout)
+	}
+}
+
+// stepTimeout listens on the currentTimeout channel, if the
+// step has timeout then it stops current step.
+func (e *executor) stepTimeout() {
+	e.stepTimeoutEvent()
+	for _, nc := range e.step.NodeConfigs {
+		e.sender.Send(NodeConfig{Id: nc.GetId(), Color: Color_NO_COLOR})
+	}
+	if e.stopOnTimeout {
+		e.done = true
+		e.routineEndEvent()
+		return
+	}
+	e.nextStep()
+}
+
+func (e *executor) routineTimeout() {
+	// TODO
+}
+
+func (e *executor) routineTimeoutEvent() {
 	e.events <- Event{
 		Type: Event_RoutineTimeout,
 		Step: e.stepID,
 	}
 }
 
-func (e executor) stepTimeoutEvent() {
+func (e *executor) stepTimeoutEvent() {
 	e.events <- Event{
 		Type: Event_StepTimeout,
 		Step: e.stepID,
 	}
 }
 
-func (e executor) toucheEvent(node NodeConfig) {
+func (e *executor) toucheEvent(nodeID, delay uint32) {
 	e.events <- Event{
 		Type:  Event_Touche,
-		Color: node.GetColor(),
-		Delay: node.Delay,
+		Color: e.step.nodeColor(nodeID),
+		Delay: delay,
 		Step:  e.stepID,
-		Node:  node.GetId(),
+		Node:  nodeID,
 	}
 }
 
-func (e executor) routineEndEvent(steps int32) {
+func (e *executor) routineEndEvent() {
 	e.events <- Event{
 		Type: Event_End,
-		Step: steps,
+		Step: e.steps,
 	}
 }
 
 // Done checks with the step expression if this step is done.
-func (s *Step) Done(node NodeConfig) (bool, error) {
-	return false, nil
+func (s *Step) done(nodeID uint32) bool {
+	return false
+}
+
+// nodeColor returns the color of nodeID. If nodeID is not in
+// nodeConfigs then it Color_NO_COLOR.
+func (s *Step) nodeColor(nodeID uint32) Color {
+	for _, nc := range s.NodeConfigs {
+		if nc.GetId() == nodeID {
+			return nc.GetColor()
+		}
+	}
+	return Color_NO_COLOR
 }

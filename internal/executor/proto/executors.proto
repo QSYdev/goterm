@@ -16,29 +16,29 @@ enum Color {
 
 message RandomExecutor {
 	repeated Color colors = 1;
-	int64 timeout = 2;
-	int64 delay = 3;
-	int64 duration = 4;
-	int32 steps = 5;
+	uint32 timeout = 2;
+	uint32 delay = 3;
+	uint32 duration = 4;
+	uint32 steps = 5;
 	bool stopOnTimeout = 6;
 	bool waitForAllPlayers = 7;
-	int32 nodes = 8;
+	uint32 nodes = 8;
 }
 
 message NodeConfig {
-	int32 id = 1;
-	int64 delay = 2;
+	uint32 id = 1;
+	uint32 delay = 2;
 	Color color = 3;
 }
 
 message Step {
 	repeated NodeConfig nodeConfigs = 1;
-	int64 timeout = 2;
+	uint32 timeout = 2;
 	string expression = 3;
 	bool stopOnTimeout = 4;
 }
 
 message CustomExecutor {
-	int64 duration = 1;
+	uint32 duration = 1;
 	repeated Step steps = 2;
 }
