@@ -41,7 +41,7 @@ func (r *Random) Touche(stepID, nodeID, delay uint32) {
 }
 
 // generateNextStep generates a new random step.
-func (r *Random) generateNextStep() *Step {
+func (r *Random) generateNextStep() *step {
 	t := int(r.RandomExecutor.Nodes)
 	nodes := make([]bool, t)
 	colors := make(map[Color]bool)
@@ -73,10 +73,10 @@ func (r *Random) generateNextStep() *Step {
 			exp = exp + "&"
 		}
 	}
-	return &Step{
+	return newStep(&Step{
 		NodeConfigs:   nodeConfigs,
 		Expression:    exp,
 		Timeout:       r.RandomExecutor.Timeout,
 		StopOnTimeout: r.RandomExecutor.StopOnTimeout,
-	}
+	})
 }
