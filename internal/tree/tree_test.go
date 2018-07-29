@@ -14,7 +14,7 @@ func TestInfixToPostfix(t *testing.T) {
 		{name: "or of ands with paren", infix: "(1&2)|(3&4)", result: "1 2 & 3 4 & |"},
 		{name: "and no paren", infix: "1&2", result: "1 2 &"},
 		{name: "no operator", infix: "1", result: "1"},
-		{name: "2 digit numbers with paren", infix: "(12&2)|(212 & 1)", result: "12 2 & 212 1 & |"},
+		{name: "no paren lot of &", infix: "1&2&3&4", result: "1 2 & 3 & 4 &"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(tt *testing.T) {
@@ -26,6 +26,8 @@ func TestInfixToPostfix(t *testing.T) {
 }
 
 func TestParse(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name       string
 		visited    []bool
@@ -36,6 +38,7 @@ func TestParse(t *testing.T) {
 		{name: "or with enough visited", visited: []bool{true, false}, expression: "0|1", eval: true},
 		{name: "and with not all visited", visited: []bool{true, false}, expression: "0&1", eval: false},
 		{name: "or with none visited", visited: []bool{false, false}, expression: "0|1", eval: false},
+		{name: "and of lot expressions no paren", visited: []bool{true, true, true, true}, expression: "0&1&2&3", eval: true},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(tt *testing.T) {
