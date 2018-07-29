@@ -9,7 +9,7 @@ type s struct {
 	r chan uint32
 }
 
-func (s *s) Send(config NodeConfig) {
+func (s *s) Send(stepID uint32, config NodeConfig) {
 	s.r <- config.GetId()
 }
 
@@ -78,6 +78,8 @@ func TestSendStep(t *testing.T) {
 }
 
 func TestNextStep(t *testing.T) {
+	t.Parallel()
+
 	e := &executor{
 		sender: &s{},
 		stepID: 1,
@@ -90,5 +92,21 @@ func TestNextStep(t *testing.T) {
 	}
 	if event := <-e.events; event.GetType() != Event_End {
 		t.Fatalf("expected event to be routine end but got %s", event.GetType())
+	}
+}
+
+func TestRoutineTimeout(t *testing.T) {
+	t.Parallel()
+
+	e := &executor{
+		step:   newStep(&Step{}),
+		events: make(chan Event, 1),
+	}
+	e.routineTimer = time.AfterFunc(10*time.Millisecond, e.routineTimeout)
+	if event := <-e.events; event.GetType() != Event_RoutineTimeout {
+		t.Fatalf("expected event to be routine timeout but got %s", event.GetType())
+	}
+	if !e.done {
+		t.Fatalf("expected routine to be done")
 	}
 }
