@@ -32,14 +32,14 @@ type executor struct {
 	events chan Event
 
 	stepTimer *time.Timer
-	step      *Step
+	step      *step
 	stepID    uint32
 	steps     uint32
 
 	routineTimer  *time.Timer
 	duration      time.Duration
 	stopOnTimeout bool
-	getNextStep   func() *Step
+	getNextStep   func() *step
 }
 
 func (e *executor) start() {
@@ -134,20 +134,4 @@ func (e *executor) routineEndEvent() {
 		Type: Event_End,
 		Step: e.steps,
 	}
-}
-
-// Done checks with the step expression if this step is done.
-func (s *Step) done(nodeID uint32) bool {
-	return false
-}
-
-// nodeColor returns the color of nodeID. If nodeID is not in
-// nodeConfigs then it Color_NO_COLOR.
-func (s *Step) nodeColor(nodeID uint32) Color {
-	for _, nc := range s.NodeConfigs {
-		if nc.GetId() == nodeID {
-			return nc.GetColor()
-		}
-	}
-	return Color_NO_COLOR
 }

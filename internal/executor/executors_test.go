@@ -21,7 +21,7 @@ func TestStepTimeout(t *testing.T) {
 		sender:        &s{r: schan},
 		events:        make(chan Event, 2),
 		stopOnTimeout: true,
-		step:          &Step{NodeConfigs: []*NodeConfig{&NodeConfig{Id: 1}}},
+		step:          newStep(&Step{NodeConfigs: []*NodeConfig{&NodeConfig{Id: 1}}}),
 	}
 	e.stepTimer = time.AfterFunc(10*time.Millisecond, e.stepTimeout)
 	if event := <-e.events; event.GetType() != Event_StepTimeout {
@@ -38,8 +38,8 @@ func TestStepTimeout(t *testing.T) {
 		sender:        &s{r: schan},
 		events:        make(chan Event, 1),
 		stopOnTimeout: false,
-		step:          &Step{NodeConfigs: []*NodeConfig{&NodeConfig{Id: 1}}},
-		getNextStep:   func() *Step { return &Step{NodeConfigs: []*NodeConfig{&NodeConfig{Id: 2}}} },
+		step:          newStep(&Step{NodeConfigs: []*NodeConfig{&NodeConfig{Id: 1}}}),
+		getNextStep:   func() *step { return newStep(&Step{NodeConfigs: []*NodeConfig{&NodeConfig{Id: 2}}}) },
 		steps:         3,
 	}
 	e.stepTimer = time.AfterFunc(10*time.Millisecond, e.stepTimeout)
@@ -61,8 +61,8 @@ func TestSendStep(t *testing.T) {
 	e := &executor{
 		stepID: 1,
 		sender: &s{r: schan},
-		getNextStep: func() *Step {
-			return &Step{Timeout: 1, NodeConfigs: []*NodeConfig{&NodeConfig{Id: 1}, &NodeConfig{Id: 2}}}
+		getNextStep: func() *step {
+			return newStep(&Step{Timeout: 1, NodeConfigs: []*NodeConfig{&NodeConfig{Id: 1}, &NodeConfig{Id: 2}}})
 		},
 	}
 	e.sendStep()
