@@ -42,40 +42,20 @@ func (r *Random) Touche(stepID, nodeID, delay uint32) {
 
 // generateNextStep generates a new random step.
 func (r *Random) generateNextStep() *step {
-	t := int(r.RandomExecutor.Nodes)
-	nodes := make([]bool, t)
-	colors := make(map[Color]bool)
-	for _, v := range r.RandomExecutor.Colors {
-		colors[v] = false
-	}
 	nodeConfigs := []*NodeConfig{}
 	exp := ""
-	for i := 0; i < t; i++ {
-		n := rand.Intn(i - 1)
-		if nodes[n] {
-			continue
-		}
-		nodes[n] = true
-		nc := &NodeConfig{
-			Id:    uint32(n),
+	nodes := rand.Perm(int(r.RandomExecutor.Nodes))
+	for i, c := range r.RandomExecutor.Colors {
+		nodeConfigs = append(nodeConfigs, &NodeConfig{
+			Id:    uint32(nodes[i]),
 			Delay: r.RandomExecutor.Delay,
-		}
-		for k, v := range colors {
-			if !v {
-				continue
-			}
-			colors[k] = true
-			nc.Color = k
-		}
-		nodeConfigs = append(nodeConfigs, nc)
-		exp = exp + strconv.Itoa(n)
-		if i < t-1 {
-			exp = exp + "&"
-		}
+			Color: c,
+		})
+		exp += strconv.Itoa(nodes[i]) + "&"
 	}
 	return newStep(&Step{
 		NodeConfigs:   nodeConfigs,
-		Expression:    exp,
+		Expression:    exp[:len(exp)-1],
 		Timeout:       r.RandomExecutor.Timeout,
 		StopOnTimeout: r.RandomExecutor.StopOnTimeout,
 	})
