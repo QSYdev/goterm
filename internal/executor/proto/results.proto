@@ -14,13 +14,13 @@ message Event {
 	}
 	Type type = 1;
 	Color color = 5;
-	int64 delay = 2;
-	int32 step = 3;
-	int32 node = 4;
+	uint32 delay = 2;
+	uint32 step = 3;
+	uint32 node = 4;
 }
 
 message Result {
 	repeated Event events = 1;
-	int32 steps = 2;
-	int64 duration = 3;
+	uint32 steps = 2;
+	uint32 duration = 3;
 }
