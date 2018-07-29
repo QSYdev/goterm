@@ -14,7 +14,7 @@ var (
 
 // Sender knows how to send a node config.
 type Sender interface {
-	Send(config NodeConfig)
+	Send(stepID uint32, node NodeConfig)
 }
 
 // Executor knows how to advance after each touche
@@ -88,9 +88,11 @@ func (e *executor) nextStep() {
 
 func (e *executor) sendStep() {
 	e.step = e.getNextStep()
+	e.mu.RLock()
 	for _, nc := range e.step.NodeConfigs {
-		e.sender.Send(*nc)
+		e.sender.Send(e.stepID, *nc)
 	}
+	e.mu.RUnlock()
 	if e.step.GetTimeout() != 0 {
 		e.stepTimer = time.AfterFunc(time.Duration(e.step.GetTimeout())*time.Millisecond, e.stepTimeout)
 	}
@@ -105,9 +107,7 @@ func (e *executor) stepTimeout() {
 	}
 	e.mu.Unlock()
 	e.stepTimeoutEvent()
-	for _, nc := range e.step.NodeConfigs {
-		e.sender.Send(NodeConfig{Id: nc.GetId(), Color: Color_NO_COLOR})
-	}
+	e.cancelStep()
 	if e.stopOnTimeout {
 		e.done = true
 		e.routineEndEvent()
@@ -116,8 +116,19 @@ func (e *executor) stepTimeout() {
 	e.nextStep()
 }
 
+func (e *executor) cancelStep() {
+	for _, nc := range e.step.NodeConfigs {
+		e.sender.Send(0, *nc)
+	}
+}
+
 func (e *executor) routineTimeout() {
-	// TODO
+	if e.stepTimer != nil {
+		e.stepTimer.Stop()
+	}
+	e.done = true
+	e.cancelStep()
+	e.routineTimeoutEvent()
 }
 
 func (e *executor) routineTimeoutEvent() {

@@ -10,4 +10,3 @@ push-test:
 	scp ./cmd/test/test pi@10.0.0.1:~/terminal
 protoc:
 	protoc --proto_path=$(GOPATH)/src --go_out=$(GOPATH)/src $(PWD)/internal/executor/proto/executors.proto
-	protoc --proto_path=$(GOPATH)/src --go_out=$(GOPATH)/src $(PWD)/internal/executor/proto/results.proto
