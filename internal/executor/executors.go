@@ -10,6 +10,15 @@ var (
 	// ErrNotExist is the error that happens when the node
 	// does not exist in the current step.
 	ErrNotExist = errors.New("NodeConfig does not exist in current step")
+	// ErrInvalidExecutor is the error returned when the
+	// executor is not valid.
+	ErrInvalidExecutor = errors.New("Executor can't be nil")
+)
+
+const (
+	// eventChannelSize is the size of the buffered channel
+	// used to send events.
+	eventChannelSize = 30
 )
 
 // Sender knows how to send a node config.

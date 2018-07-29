@@ -1,13 +1,10 @@
 package executor
 
 import (
-	"errors"
 	"math/rand"
 	"strconv"
 	"time"
 )
-
-type empty struct{}
 
 // Random wraps a RandomExecutor with the functionality
 // necessary to execute.
@@ -19,7 +16,7 @@ type Random struct {
 // Start starts the executor using sender to send actions.
 func (r *Random) Start(sender Sender) error {
 	if r.RandomExecutor == nil {
-		return errors.New("invalid configuration")
+		return ErrInvalidExecutor
 	}
 	r.executor = &executor{
 		events:        make(chan Event, 30),
