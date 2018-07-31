@@ -27,7 +27,7 @@ func (r r) NewNode(id uint16) {
 
 func main() {
 	ctx := context.Background()
-	s, err := qsy.NewServer(ctx, os.Stdout, "wlan0", net.IP{224, 0, 0, 12}, "", "10.0.0.1", r{})
+	s, err := qsy.NewServer(ctx, os.Stdout, "wlan0", net.IP{224, 0, 0, 12}, "10.0.0.1", r{})
 	if err != nil {
 		log.Printf("failed to create server: %s", err)
 		os.Exit(1)

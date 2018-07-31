@@ -30,13 +30,6 @@ func (r *Random) Start(sender Sender) error {
 	return nil
 }
 
-// Touche registers a touche with the specified node config.
-// If the nodeConfig is not part of the current step then
-// it's a nop.
-func (r *Random) Touche(stepID, nodeID, delay uint32) {
-	r.touche(stepID, nodeID, delay)
-}
-
 // generateNextStep generates a new random step.
 func (r *Random) generateNextStep() *step {
 	nodeConfigs := []*NodeConfig{}
