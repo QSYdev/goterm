@@ -87,6 +87,12 @@ func (e *executor) Events() <-chan Event {
 	return e.events
 }
 
+// Touche adds the nodeID as touched. If stepID is not the
+// same one than the current step then this does nothing.
+func (e *executor) Touche(stepID, nodeID, delay uint32) {
+	e.touche(stepID, nodeID, delay)
+}
+
 func (e *executor) start() {
 	if e.duration != 0 {
 		e.routineTimer = time.AfterFunc(e.duration, e.routineTimeout)

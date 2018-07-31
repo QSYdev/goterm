@@ -25,12 +25,6 @@ func (c *Custom) Start(sender Sender) error {
 	return nil
 }
 
-// Touche adds the nodeID as touched. If stepID is not the
-// same one than the current step then this does nothing.
-func (c *Custom) Touche(stepID, nodeID, delay uint32) {
-	c.touche(stepID, nodeID, delay)
-}
-
 // generateNextSteps returns the next step to be executed.
 func (c *Custom) generateNextStep() *step {
 	c.mu.RLock()
