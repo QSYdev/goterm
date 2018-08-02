@@ -11,7 +11,7 @@ import (
 	proto "github.com/golang/protobuf/proto"
 	"github.com/paypal/gatt"
 	"github.com/paypal/gatt/examples/option"
-	"github.com/qsydev/goterm/internal/ble"
+	"github.com/qsydev/goterm/internal/ble/fragmenter"
 	"github.com/qsydev/goterm/internal/executor"
 	"github.com/qsydev/goterm/pkg/qsy"
 )
@@ -147,7 +147,7 @@ func main() {
 	onStateChanged := func(d gatt.Device, s gatt.State) {
 		switch s {
 		case gatt.StatePoweredOn:
-			svc := ble.NewService(client)
+			svc := fragmenter.New(client)
 			d.AddService(svc)
 			uuids := []gatt.UUID{svc.UUID()}
 			d.AdvertiseNameAndServices("terminal", uuids)
