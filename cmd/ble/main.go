@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net"
 	"os"
 
 	proto "github.com/golang/protobuf/proto"
@@ -20,7 +19,7 @@ var srv *qsy.Server
 var ctx, cancel = context.WithCancel(context.Background())
 
 type r struct {
-	executor executor.Executor
+	executor executor.E
 }
 
 func (r r) Receive(p qsy.Packet) {
@@ -66,7 +65,7 @@ func (r r) Notify() <-chan []byte {
 func main() {
 	var err error
 	client := r{}
-	srv, err = qsy.NewServer(ctx, os.Stdout, "wlan0", net.IP{224, 0, 0, 12}, "10.0.0.1", client)
+	srv, err = qsy.NewServer(ctx, os.Stdout, "wlan0", "10.0.0.1", client)
 	if err != nil {
 		log.Fatalf("failed to create server: %s", err)
 	}
