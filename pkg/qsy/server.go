@@ -29,6 +29,8 @@ var (
 	// ErrNotExist is an error when a given node is
 	// not in the pool.
 	ErrNotExist = errors.New("node does not exist")
+
+	group = net.IP{224, 0, 0, 12}
 )
 
 type newConn struct {
@@ -87,12 +89,9 @@ type Server struct {
 //	* localAddress: the tcp address associated with the network
 //	  interface.
 //	* listener: the listener that will receive specific events
-func NewServer(ctx context.Context, logger io.Writer, inf string, group net.IP, localAddress string, listener Listener) (*Server, error) {
-	if inf == "" || group == nil || localAddress == "" {
+func NewServer(ctx context.Context, logger io.Writer, inf string, localAddress string, listener Listener) (*Server, error) {
+	if inf == "" || localAddress == "" {
 		return nil, errors.New("please provide the network interface, multicast group and local tcp address")
-	}
-	if ctx == nil {
-		ctx = context.Background()
 	}
 	i, err := net.InterfaceByName(inf)
 	if err != nil {
@@ -130,6 +129,7 @@ func NewServer(ctx context.Context, logger io.Writer, inf string, group net.IP, 
 // does not exist or packet is incorrect. The writing
 // to the connection may or may not succeed, either way
 // you will find that if you implement Listener interface.
+// Send can be called concurrently.
 func (srv *Server) Send(packet Packet) error {
 	b, err := packet.Encode()
 	if err != nil {
