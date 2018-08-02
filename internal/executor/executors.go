@@ -36,10 +36,10 @@ type Sender interface {
 	Send(stepID uint32, node NodeConfig)
 }
 
-// Executor knows how to advance after each touche
+// E knows how to advance after each touche
 // and exposes the events that happen durinig the
 // execution.
-type Executor interface {
+type E interface {
 	Touche(stepID, nodeID, delay uint32)
 	Stop() error
 	Start(sender Sender) error
