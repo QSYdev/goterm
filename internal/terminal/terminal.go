@@ -6,7 +6,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/gogo/protobuf/proto"
+	"github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
 
 	"github.com/qsydev/goterm/internal/ble"
@@ -181,43 +181,24 @@ func (t *T) Notify() <-chan []byte {
 
 // Receive implements the receive method of qsy.Listener.
 func (t *T) Receive(pkt qsy.Packet) {
-	select {
-	case t.packetsChan <- pkt:
-	case <-t.ctx.Done():
-		return
-	}
 }
 
 // LostNode implements the LostNode method of qsy.Listener.
 func (t *T) LostNode(id uint16) {
-	select {
-	case t.nodesChan <- nodeEvent{id: uint32(id), lost: true}:
-	case <-t.ctx.Done():
-		return
-	}
 }
 
 // NewNode implements the receive NewNode of qsy.Listener.
 func (t *T) NewNode(id uint16) {
-	select {
-	case t.nodesChan <- nodeEvent{id: uint32(id), lost: false}:
-	case <-t.ctx.Done():
-		return
-	}
 }
 
 // Send implements the send method of executor.Sender.
 func (t *T) Send(stepID uint32, nc executor.NodeConfig) {
-	select {
-	case <-t.ctx.Done():
-		return
-	default:
-		if err := t.server.Send(
-			qsy.NewPacket(qsy.ToucheT, uint16(nc.GetId()), parseColor(nc.GetColor()),
-				nc.GetDelay(), uint16(stepID), false, false)); err != nil {
-			// TODO: what happens when we can't send
-		}
+	// TODO: what happens on error
+	if err := t.server.Send(
+		qsy.NewPacket(qsy.ToucheT, uint16(nc.GetId()), parseColor(nc.GetColor()),
+			nc.GetDelay(), uint16(stepID), false, false)); err != nil {
 	}
+
 }
 
 // parseColor parses the executor.Color to a qsy.Color.
