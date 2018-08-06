@@ -4,7 +4,6 @@ import (
 	"context"
 	"io/ioutil"
 	"log"
-	"net"
 	"testing"
 	"time"
 )
@@ -35,7 +34,7 @@ const (
 func BenchmarkServer(b *testing.B) {
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(duration*time.Second))
 	defer cancel()
-	s, err := NewServer(ctx, ioutil.Discard, interfaceName, net.IP{224, 0, 0, 12}, "", route, r{})
+	s, err := NewServer(ctx, ioutil.Discard, interfaceName, route, r{})
 	if err != nil {
 		b.Fatal(err)
 	}

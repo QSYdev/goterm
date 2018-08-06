@@ -3,3 +3,5 @@ cmd/test/test
 *.DS_Store
 *.test
 *.out
+*.pb.go
+cmd/ble/ble

@@ -29,6 +29,8 @@ var (
 	// ErrNotExist is an error when a given node is
 	// not in the pool.
 	ErrNotExist = errors.New("node does not exist")
+
+	group = net.IP{224, 0, 0, 12}
 )
 
 type newConn struct {
@@ -57,10 +59,10 @@ type Server struct {
 
 	ctx context.Context
 
-	pconn     *ipv4.PacketConn
-	laddr     *net.TCPAddr
-	route     string
-	listeners []Listener
+	pconn    *ipv4.PacketConn
+	laddr    *net.TCPAddr
+	route    string
+	listener Listener
 
 	incoming     chan newConn
 	packets      chan Packet
@@ -83,19 +85,13 @@ type Server struct {
 //	  the addresses live.
 //	* group: the IP for the multicast group used for listening
 // 	  hello packets over udp.
-//	* route: an IPv4 address for configuring the UDP server.
 //	  If no route is provided then the default route will be used.
 //	* localAddress: the tcp address associated with the network
 //	  interface.
-func NewServer(ctx context.Context, logger io.Writer, inf string, group net.IP, route, localAddress string, listeners ...Listener) (*Server, error) {
-	if inf == "" || group == nil || localAddress == "" {
+//	* listener: the listener that will receive specific events
+func NewServer(ctx context.Context, logger io.Writer, inf string, localAddress string, listener Listener) (*Server, error) {
+	if inf == "" || localAddress == "" {
 		return nil, errors.New("please provide the network interface, multicast group and local tcp address")
-	}
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	if route == "" {
-		route = defaultRoute
 	}
 	i, err := net.InterfaceByName(inf)
 	if err != nil {
@@ -105,7 +101,7 @@ func NewServer(ctx context.Context, logger io.Writer, inf string, group net.IP, 
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid local address")
 	}
-	c, err := net.ListenPacket(udpv, net.JoinHostPort(route, fmt.Sprintf("%v", QSYPort)))
+	c, err := net.ListenPacket(udpv, net.JoinHostPort(defaultRoute, fmt.Sprintf("%v", QSYPort)))
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid route config")
 	}
@@ -118,12 +114,12 @@ func NewServer(ctx context.Context, logger io.Writer, inf string, group net.IP, 
 	}
 	log.SetOutput(logger)
 	srv := &Server{
-		ctx:       ctx,
-		pconn:     p,
-		route:     route,
-		laddr:     laddr,
-		delay:     DefaultDelay,
-		listeners: listeners,
+		route:    defaultRoute,
+		ctx:      ctx,
+		pconn:    p,
+		laddr:    laddr,
+		delay:    DefaultDelay,
+		listener: listener,
 	}
 	return srv, nil
 }
@@ -133,6 +129,7 @@ func NewServer(ctx context.Context, logger io.Writer, inf string, group net.IP, 
 // does not exist or packet is incorrect. The writing
 // to the connection may or may not succeed, either way
 // you will find that if you implement Listener interface.
+// Send can be called concurrently.
 func (srv *Server) Send(packet Packet) error {
 	b, err := packet.Encode()
 	if err != nil {
@@ -178,7 +175,7 @@ func (srv *Server) ListenAndAccept() error {
 	srv.mu.Unlock()
 	go srv.listen()
 	go srv.accept()
-	if srv.listeners != nil {
+	if srv.listener != nil {
 		go srv.forward()
 	}
 	return nil
@@ -192,17 +189,11 @@ func (srv *Server) forward() {
 	for {
 		select {
 		case p := <-srv.packets:
-			for _, v := range srv.listeners {
-				go v.Receive(p)
-			}
+			go srv.listener.Receive(p)
 		case id := <-srv.disconnected:
-			for _, v := range srv.listeners {
-				go v.LostNode(id)
-			}
+			go srv.listener.LostNode(id)
 		case id := <-srv.connected:
-			for _, v := range srv.listeners {
-				go v.NewNode(id)
-			}
+			go srv.listener.NewNode(id)
 		case <-srv.ctx.Done():
 			return
 		}
