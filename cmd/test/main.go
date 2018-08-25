@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/qsydev/goterm/pkg/qsy"
+	"qsydev.com/term/pkg/qsy"
 )
 
 type r struct{}

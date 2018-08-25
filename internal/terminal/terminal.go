@@ -8,10 +8,10 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
 
-	"github.com/qsydev/goterm/internal/ble"
-	"github.com/qsydev/goterm/internal/ble/fragmenter"
-	"github.com/qsydev/goterm/internal/executor"
-	"github.com/qsydev/goterm/pkg/qsy"
+	"qsydev.com/term/internal/ble"
+	"qsydev.com/term/internal/ble/fragmenter"
+	"qsydev.com/term/internal/executor"
+	"qsydev.com/term/pkg/qsy"
 )
 
 const (

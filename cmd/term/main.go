@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	"github.com/qsydev/goterm/internal/terminal"
+	"qsydev.com/term/internal/terminal"
 )
 
 func main() {

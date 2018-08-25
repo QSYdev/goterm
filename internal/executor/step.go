@@ -1,6 +1,6 @@
 package executor
 
-import "github.com/qsydev/goterm/internal/tree"
+import "qsydev.com/term/internal/tree"
 
 type step struct {
 	*Step
