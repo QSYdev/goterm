@@ -1,0 +1,14 @@
+github.com/golang/protobuf v1.2.0 h1:P3YflyNX/ehuJFLhxviNdFxQPkGK5cDcApsge1SqnvM=
+github.com/golang/protobuf v1.2.0/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
+github.com/google/uuid v0.0.0-20161128191214-064e2069ce9c/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
+github.com/paypal/gatt v0.0.0-20151011220935-4ae819d591cf h1:RHRtrMle1AlWsMdCoIQIbq7IB2y8/5qEsUoAzjCCSCw=
+github.com/paypal/gatt v0.0.0-20151011220935-4ae819d591cf/go.mod h1:+AwQL2mK3Pd3S+TUwg0tYQjid0q1txyNUJuuSmz8Kdk=
+github.com/pkg/errors v0.8.0 h1:WdK/asTD0HN+q6hsWO3/vpuAkAr+tw6aNJNDFFf0+qw=
+github.com/pkg/errors v0.8.0/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
+github.com/pkg/profile v1.2.1/go.mod h1:hJw3o1OdXxsrSjjVksARp5W95eeEaEfptyVZyv6JUPA=
+github.com/qsydev/goterm v0.0.0-20180705000838-7f4a021126f9 h1:xKRLlkyjL0sgFKUa0oUTtNQ7tgm9JCP8XpSBL1DErT4=
+github.com/qsydev/goterm v0.0.0-20180705000838-7f4a021126f9/go.mod h1:GgREbHRduOzZPqDD6Sv7rjzxkKsd0PIJTVJhr1dB/9A=
+golang.org/x/net v0.0.0-20180611182652-db08ff08e862 h1:JZi6BqOZ+iSgmLWe6llhGrNnEnK+YB/MRkStwnEfbqM=
+golang.org/x/net v0.0.0-20180611182652-db08ff08e862/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
+golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f h1:wMNYb4v58l5UBM7MYRLPG6ZhfOqbKu7X5eyFl8ZhKvA=
+golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
