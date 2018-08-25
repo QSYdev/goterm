@@ -3,8 +3,6 @@ package qsy
 import (
 	"context"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"sync"
@@ -89,7 +87,7 @@ type Server struct {
 //	* localAddress: the tcp address associated with the network
 //	  interface.
 //	* listener: the listener that will receive specific events
-func NewServer(ctx context.Context, logger io.Writer, inf string, localAddress string, listener Listener) (*Server, error) {
+func NewServer(ctx context.Context, inf string, localAddress string, listener Listener) (*Server, error) {
 	if inf == "" || localAddress == "" {
 		return nil, errors.New("please provide the network interface, multicast group and local tcp address")
 	}
@@ -109,10 +107,6 @@ func NewServer(ctx context.Context, logger io.Writer, inf string, localAddress s
 	if err = p.JoinGroup(i, &net.UDPAddr{IP: group}); err != nil {
 		return nil, errors.Wrap(err, "failed to join group")
 	}
-	if logger == nil {
-		logger = ioutil.Discard
-	}
-	log.SetOutput(logger)
 	srv := &Server{
 		route:    defaultRoute,
 		ctx:      ctx,

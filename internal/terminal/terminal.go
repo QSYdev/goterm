@@ -3,7 +3,6 @@ package terminal
 import (
 	"context"
 	"log"
-	"os"
 	"sync"
 
 	"github.com/golang/protobuf/proto"
@@ -60,7 +59,7 @@ func (t *T) Run(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize BLE device")
 	}
-	t.server, err = qsy.NewServer(ctx, os.Stdout, inf, laddr, t)
+	t.server, err = qsy.NewServer(ctx, inf, laddr, t)
 	if err != nil {
 		return errors.Wrap(err, "failed to create QSY server")
 	}
@@ -96,7 +95,7 @@ func (t *T) run() error {
 	}
 }
 
-func (t *T) exec() {
+func (t *T) processEvents() {
 	for event := range t.executor.Events() {
 		b, err := proto.Marshal(&event)
 		if err != nil {
@@ -163,7 +162,7 @@ func (t *T) Write(data []byte) error {
 	t.executing = true
 	t.mu.Unlock()
 	t.executor.Start(t)
-	go t.exec()
+	go t.processEvents()
 	return nil
 }
 
