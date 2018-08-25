@@ -2,7 +2,6 @@ package qsy
 
 import (
 	"context"
-	"io/ioutil"
 	"log"
 	"testing"
 	"time"
@@ -34,7 +33,7 @@ const (
 func BenchmarkServer(b *testing.B) {
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(duration*time.Second))
 	defer cancel()
-	s, err := NewServer(ctx, ioutil.Discard, interfaceName, route, r{})
+	s, err := NewServer(ctx, interfaceName, route, r{})
 	if err != nil {
 		b.Fatal(err)
 	}
